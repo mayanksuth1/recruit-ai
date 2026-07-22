@@ -1,0 +1,13 @@
+# Netlify config for the Recruit AI frontend (Vite SPA in /frontend).
+# Netlify reads this from the repo root; `base` points it at the frontend.
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+# Single-page-app fallback: serve index.html for client-side routes
+# (e.g. /roles/:id, /schedule/:token) so a refresh or deep link doesn't 404.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
