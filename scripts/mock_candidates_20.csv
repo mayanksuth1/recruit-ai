@@ -1,0 +1,21 @@
+Full Name,Email,Phone,Current Title,Current Company,Location,Years of Experience,Skills,Summary
+Arjun Mehta,arjun.mehta@example.com,+91 98100 11001,Senior Backend Engineer,Razorpay,Bangalore,8,"Python, FastAPI, PostgreSQL, AWS, Docker, Kafka",Built payment APIs handling 50M requests/day; led multi-tenant platform redesign.
+Sneha Iyer,sneha.iyer@example.com,+91 98100 11002,Staff Software Engineer,Freshworks,Chennai,10,"Python, Django, FastAPI, PostgreSQL, AWS, Terraform",Architected multi-tenant SaaS billing system; mentors a team of 6 backend engineers.
+Rohan Desai,rohan.desai@example.com,+91 98100 11003,Backend Engineer III,Swiggy,Bangalore,6,"Python, FastAPI, PostgreSQL, Redis, AWS",Owns order-management microservices; strong on API design and query optimization.
+Kavita Reddy,kavita.reddy@example.com,+91 98100 11004,Senior Software Engineer,Zeta,Hyderabad,7,"Python, Flask, FastAPI, PostgreSQL, AWS, Kubernetes",Core banking APIs; migrated monolith to services on EKS with zero-downtime cutover.
+Nikhil Banerjee,nikhil.banerjee@example.com,+91 98100 11005,Lead Backend Developer,CRED,Bangalore,9,"Python, FastAPI, PostgreSQL, DynamoDB, AWS",Leads rewards platform backend; designed tenant isolation layer for B2B product.
+Meera Krishnan,meera.krishnan@example.com,+91 98100 11006,Senior Backend Engineer,Postman,Bangalore,7,"Python, FastAPI, PostgreSQL, gRPC, GCP, AWS",API platform internals; built rate-limiting and usage-metering services.
+Vikram Singh,vikram.singh@example.com,+91 98100 11007,Senior Java Developer,Infosys,Pune,9,"Java, Spring Boot, Oracle, Jenkins",Enterprise Java services for banking clients; some exposure to Python scripting.
+Ananya Gupta,ananya.gupta@example.com,+91 98100 11008,Full Stack Developer,Zoho,Chennai,4,"JavaScript, Node.js, React, MongoDB, some Python",Ships end-to-end features; backend mostly Node.js with one Python side project.
+Farhan Sheikh,farhan.sheikh@example.com,+91 98100 11009,DevOps Engineer,Paytm,Noida,6,"AWS, Terraform, Kubernetes, Python scripting, CI/CD",Infrastructure automation; writes Python tooling but not application backends.
+Divya Nair,divya.nair@example.com,+91 98100 11010,Software Engineer,TCS,Kochi,2,"Python, Django, MySQL",Two years on internal Django tools; eager to move into product engineering.
+Aditya Kulkarni,aditya.kulkarni@example.com,+91 98100 11011,Data Engineer,Flipkart,Bangalore,5,"Python, Spark, Airflow, SQL, AWS",Builds data pipelines; strong Python but limited API/service development.
+Pooja Malhotra,pooja.malhotra@example.com,+91 98100 11012,Mobile Developer,PhonePe,Bangalore,5,"Kotlin, Android, Firebase",Android payments app developer; no server-side experience beyond Firebase.
+Sanjay Patil,sanjay.patil@example.com,+91 98100 11013,QA Automation Engineer,Wipro,Pune,7,"Selenium, Python, pytest, JMeter",Test automation frameworks in Python; wants to transition to development.
+Ritu Verma,ritu.verma@example.com,+91 98100 11014,Frontend Engineer,Meesho,Bangalore,4,"React, TypeScript, Next.js, CSS",Frontend specialist; consumes REST APIs but has not built them.
+Karan Chopra,karan.chopra@example.com,+91 98100 11015,Graphic Designer,Ogilvy,Mumbai,6,"Photoshop, Illustrator, Figma, branding",Brand identity and campaign design; no software engineering background.
+Lakshmi Menon,lakshmi.menon@example.com,+91 98100 11016,HR Executive,Accenture,Bangalore,5,"Recruitment, onboarding, HRMS, payroll",Handles recruitment operations and employee engagement programs.
+Rajesh Khanna,rajesh.khanna@example.com,+91 98100 11017,Sales Manager,Urban Company,Delhi,8,"B2B sales, CRM, negotiations, team management",Leads a 12-person sales team for home services subscriptions.
+Fatima Ansari,fatima.ansari@example.com,+91 98100 11018,Chartered Accountant,KPMG,Mumbai,7,"Audit, taxation, IFRS, Tally, Excel",Statutory audits and tax advisory for mid-market clients.
+Deepak Rawat,deepak.rawat@example.com,+91 98100 11019,Registered Nurse,Apollo Hospitals,Delhi,10,"Critical care, patient management, ICU protocols",Senior ICU nurse; no technology background.
+Ishaan Bhatt,ishaan.bhatt@example.com,+91 98100 11020,Sous Chef,Taj Hotels,Mumbai,9,"Continental cuisine, kitchen operations, menu design",Runs kitchen operations for a 200-cover fine dining restaurant.

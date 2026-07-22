@@ -1,0 +1,42 @@
+# Render blueprint for the Recruit AI FastAPI backend.
+# You can either import this file (New + -> Blueprint) or configure the
+# service manually with the same settings (see DEPLOYMENT.md).
+services:
+  - type: web
+    name: recruit-ai-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      # Values are added manually in the Render dashboard (Environment tab).
+      # They are listed here as sync:false so Render prompts for them and
+      # never stores them in this committed file.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GEMINI_FALLBACK_MODEL
+        value: gemini-2.5-flash-lite
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SCHEDULER_TIMEZONE
+        value: Asia/Kolkata

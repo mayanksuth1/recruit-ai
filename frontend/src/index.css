@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #f6efe9;
+  --color-blush: #f2d8cf;
+  --color-peach: #f8c8b0;
+  --color-butter: #f7dfae;
+  --color-lavender: #c7c5ee;
+  --color-mint: #bfe6dd;
+  --color-babyblue: #bcd9ee;
+  --color-rosy: #f3b8c3;
+  --color-cocoa: #5c5049;
+  --font-sans: "Nunito", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  color: var(--color-cocoa);
+  background:
+    radial-gradient(60rem 40rem at 110% -10%, rgba(248, 200, 176, 0.45), transparent 60%),
+    radial-gradient(50rem 35rem at -15% 15%, rgba(199, 197, 238, 0.35), transparent 60%),
+    radial-gradient(45rem 30rem at 50% 120%, rgba(191, 230, 221, 0.4), transparent 60%),
+    var(--color-cream);
+  background-attachment: fixed;
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-3xl border border-white
+      shadow-[0_14px_40px_-18px_rgba(92,80,73,0.25)];
+  }
+}
+
+::selection {
+  background: var(--color-peach);
+  color: var(--color-cocoa);
+}
