@@ -5,6 +5,15 @@
   command = "npm run build"
   publish = "dist"
 
+# Vite compiles VITE_* values into the client bundle by design — that is how
+# frontend config works, and all three of these are public values (the
+# Supabase *publishable* key, the project URL, and the backend URL).
+# Netlify's secret scanner flags them as "exposed secrets" and fails the
+# build, so exempt them by name. Never add a real secret (service/secret
+# keys) to this list — those belong only on the backend.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY,VITE_API_URL"
+
 # Single-page-app fallback: serve index.html for client-side routes
 # (e.g. /roles/:id, /schedule/:token) so a refresh or deep link doesn't 404.
 [[redirects]]
