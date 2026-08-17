@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
+import ManualHelp, { ManualSection } from '../components/ManualHelp'
 
 export default function Roles() {
   const [org, setOrg] = useState(null)
@@ -70,7 +71,10 @@ export default function Roles() {
   return (
     <div className="max-w-4xl mx-auto p-8 space-y-8">
       <div>
-        <h1 className="text-2xl font-extrabold text-cocoa">Roles</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-cocoa">Roles</h1>
+          <ManualHelp section="roles" />
+        </div>
         {org && <p className="text-sm text-cocoa/60">{org.name}</p>}
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -100,6 +104,8 @@ export default function Roles() {
         ))}
         {roles.length === 0 && <p className="text-sm text-cocoa/45">No roles yet.</p>}
       </div>
+
+      <ManualSection section="roles" />
     </div>
   )
 }

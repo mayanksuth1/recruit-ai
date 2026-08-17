@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
+import ManualHelp, { ManualSection } from '../components/ManualHelp'
 
 const statusStyles = {
   proposed: 'bg-butter/80 text-amber-800',
@@ -103,7 +104,10 @@ export default function Interviews() {
     <div className="max-w-4xl mx-auto p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-cocoa">Interviews</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-extrabold text-cocoa">Interviews</h1>
+            <ManualHelp section="interviews" />
+          </div>
           <p className="text-sm text-cocoa/60">
             Reminders draft automatically 24h before; interviewers are nudged if
             feedback is missing 48h after. Checks also run every 15 minutes.
@@ -128,6 +132,8 @@ export default function Interviews() {
           </p>
         )}
       </div>
+
+      <ManualSection section="interviews" />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
+import ManualHelp, { ManualSection } from '../components/ManualHelp'
 
 const kindStyles = {
   outreach: 'bg-babyblue/70 text-sky-800',
@@ -143,7 +144,10 @@ export default function Outbox() {
     <div className="max-w-4xl mx-auto p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-cocoa">Outbox</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-extrabold text-cocoa">Outbox</h1>
+            <ManualHelp section="outbox" />
+          </div>
           <p className="text-sm text-cocoa/60">
             Every email is drafted for review — nothing sends without your click.
           </p>
@@ -189,6 +193,8 @@ export default function Outbox() {
           </p>
         )}
       </div>
+
+      <ManualSection section="outbox" />
     </div>
   )
 }

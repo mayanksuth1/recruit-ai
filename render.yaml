@@ -18,12 +18,16 @@ services:
         sync: false
       - key: SUPABASE_SECRET_KEY
         sync: false
-      - key: GEMINI_API_KEY
+      - key: NVIDIA_API_KEY
         sync: false
-      - key: GEMINI_MODEL
-        value: gemini-2.5-flash
-      - key: GEMINI_FALLBACK_MODEL
-        value: gemini-2.5-flash-lite
+      - key: NVIDIA_MODEL
+        value: openai/gpt-oss-20b
+      - key: NVIDIA_FALLBACK_MODEL
+        value: openai/gpt-oss-20b
+      - key: NVIDIA_QUALITY_MODEL
+        value: z-ai/glm-5.2
+      - key: NVIDIA_EMBEDDING_MODEL
+        value: nvidia/nv-embedqa-e5-v5
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM

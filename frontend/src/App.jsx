@@ -11,6 +11,12 @@ import Interviews from './pages/Interviews'
 import Settings from './pages/Settings'
 import Schedule from './pages/Schedule'
 import Reports from './pages/Reports'
+import AiInterviews from './pages/AiInterviews'
+import AiInterviewDetail from './pages/AiInterviewDetail'
+import AiInterview from './pages/AiInterview'
+import Search from './pages/Search'
+import Manual from './pages/Manual'
+import Dashboard from './pages/Dashboard'
 
 function ConfigBanner() {
   return (
@@ -54,15 +60,19 @@ export default function App() {
               Recruit AI
             </span>
             <nav className="flex gap-4 text-sm">
+              <Link to="/dashboard" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">Dashboard</Link>
               <Link to="/" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">Roles</Link>
               <Link to="/talent-pool" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">Talent Pool</Link>
               <Link to="/outbox" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">Outbox</Link>
               <Link to="/interviews" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">Interviews</Link>
+              <Link to="/ai-interviews" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">AI Interviews</Link>
+              <Link to="/search" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">Search</Link>
               <Link to="/reports" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">Reports</Link>
               <Link to="/settings" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">Settings</Link>
             </nav>
           </div>
           <div className="flex items-center gap-4 text-sm">
+            <Link to="/manual" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">Manual</Link>
             <span className="text-cocoa/60">{session.user.email}</span>
             <button onClick={signOut} className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">
               Sign out
@@ -78,10 +88,18 @@ export default function App() {
         <Route path="/talent-pool" element={session ? <TalentPool /> : <Navigate to="/login" />} />
         <Route path="/outbox" element={session ? <Outbox /> : <Navigate to="/login" />} />
         <Route path="/interviews" element={session ? <Interviews /> : <Navigate to="/login" />} />
+        <Route path="/ai-interviews" element={session ? <AiInterviews /> : <Navigate to="/login" />} />
+        <Route path="/ai-interviews/:sessionId" element={session ? <AiInterviewDetail /> : <Navigate to="/login" />} />
+        <Route path="/search" element={session ? <Search /> : <Navigate to="/login" />} />
         <Route path="/settings" element={session ? <Settings /> : <Navigate to="/login" />} />
         <Route path="/reports" element={session ? <Reports /> : <Navigate to="/login" />} />
-        {/* Public candidate-facing scheduling page — no login required */}
+        <Route path="/dashboard" element={session ? <Dashboard /> : <Navigate to="/login" />} />
+        <Route path="/manual" element={session ? <Manual /> : <Navigate to="/login" />} />
+        {/* Public candidate-facing pages — no login required. The token in the
+            URL is the entire authentication, so these must never sit behind the
+            session check above. */}
         <Route path="/schedule/:token" element={<Schedule />} />
+        <Route path="/ai-interview/:token" element={<AiInterview />} />
       </Routes>
     </div>
   )

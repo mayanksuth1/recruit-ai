@@ -22,8 +22,6 @@ SCORE_SCHEMA = {
     "required": ["full_name", "overall_score", "rationale"],
 }
 
-MODEL = settings.gemini_model
-
 PROMPT = """You are a recruitment screening assistant. Score the candidate's \
 resume against the job description on a 0-100 scale (overall plus skills, \
 experience, education sub-scores). Be discriminating: 90+ means an exceptional \
@@ -106,16 +104,25 @@ JOB DESCRIPTION:
 
 @lru_cache
 def _cached_client():
-    from google import genai
+    from openai import OpenAI
 
-    return genai.Client(api_key=settings.gemini_api_key)
+    # NVIDIA NIM is OpenAI-API-compatible; only the base URL differs.
+    return OpenAI(
+        api_key=settings.nvidia_api_key,
+        base_url=settings.nvidia_base_url,
+        # Generous because glm-5.2 answers in minutes, not seconds: a long
+        # generation can run well past the old 180s and a timeout here would
+        # throw away a nearly-finished response and pay the whole cost again.
+        timeout=900.0,
+        max_retries=0,  # retries/backoff are handled below so both models get a turn
+    )
 
 
 def _client():
-    if not settings.gemini_api_key:
+    if not settings.nvidia_api_key:
         raise HTTPException(
             status_code=503,
-            detail="GEMINI_API_KEY is not configured; cannot call Gemini.",
+            detail="NVIDIA_API_KEY is not configured; cannot call the model.",
         )
     # Singleton: per-call clients can be garbage-collected mid-request,
     # closing their underlying httpx pool ("client has been closed").
@@ -124,40 +131,75 @@ def _client():
 
 # Overloaded-model fallback: try the primary model with backoff, then the
 # fallback before giving up. 429/503 are transient capacity/quota errors.
-# Models are env-configurable — free-tier quotas are per-model, so flipping
-# GEMINI_MODEL to the lite model keeps the app usable when flash is exhausted.
-_RETRY_DELAYS = (0, 15, 30, 60)  # free tier throttles in bursts; be patient
-_CHUNK_PACING_SECONDS = 6  # space out batch chunks to stay under free-tier RPM
+# Models are env-configurable via NVIDIA_MODEL / NVIDIA_FALLBACK_MODEL.
+#
+# These two were tuned for Gemini's free-tier burst throttling, where waiting
+# was cheaper than retrying. NIM answers in ~1s, so the old values dominated
+# every batch: 6s between chunks meant scoring 40 candidates spent ~30s asleep,
+# and a failing call could sit in backoff for 105s per model before surfacing.
+# Shortened to match the new provider — still backing off, just proportionately.
+_RETRY_DELAYS = (0, 2, 5, 15)
+_CHUNK_PACING_SECONDS = 0.5
 _RETRYABLE_CODES = {429, 503}
 
 
-def _generate_json(prompt: str, schema: dict) -> tuple[dict, str]:
-    """Returns (parsed_json, model_that_answered)."""
-    from google.genai import errors as genai_errors
-    from google.genai import types
+def _generate_json(prompt: str, schema: dict, model: str | None = None) -> tuple[dict, str]:
+    """Returns (parsed_json, model_that_answered).
 
-    config = types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=schema,
-    )
+    Structured output uses OpenAI-style `response_format: json_schema`, which
+    NIM applies as guided decoding — the model cannot emit anything the schema
+    rejects, so json.loads() below is safe without a repair pass.
+
+    `model` opts a single call site into a different model than the default —
+    see settings.nvidia_quality_model. The fallback is always the configured
+    fast one, so a slow-model outage degrades to a quick answer rather than to
+    a second long wait.
+    """
+    import openai
+
+    response_format = {
+        "type": "json_schema",
+        "json_schema": {"name": "response", "schema": schema},
+    }
+    # dict.fromkeys keeps order while dropping the duplicate when the chosen
+    # model already is the fallback — otherwise every failure would be retried
+    # against the same model twice for no reason.
+    candidates = list(dict.fromkeys([model or settings.nvidia_model,
+                                     settings.nvidia_fallback_model]))
     last_error: Exception | None = None
-    for model in (settings.gemini_model, settings.gemini_fallback_model):
+    for model in candidates:
         for delay in _RETRY_DELAYS:
             if delay:
                 time.sleep(delay)
             try:
-                resp = _client().models.generate_content(
-                    model=model, contents=prompt, config=config
+                resp = _client().chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.4,
+                    max_tokens=4096,
+                    response_format=response_format,
                 )
-                return json.loads(resp.text), model
-            except genai_errors.APIError as e:
-                if e.code in _RETRYABLE_CODES:
+                content = resp.choices[0].message.content
+                if not content:
+                    # Reasoning-style models put their answer in
+                    # `reasoning_content` and leave `content` null. Treat it as
+                    # a bad model choice rather than retrying the same way.
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"{model} returned no content; it is not usable for JSON output.",
+                    )
+                return json.loads(content), model
+            except (openai.RateLimitError, openai.APITimeoutError, openai.APIConnectionError) as e:
+                last_error = e
+                continue
+            except openai.APIStatusError as e:
+                if e.status_code in _RETRYABLE_CODES:
                     last_error = e
                     continue
-                raise HTTPException(status_code=502, detail=f"Gemini error: {e}")
+                raise HTTPException(status_code=502, detail=f"NVIDIA NIM error: {e}")
     raise HTTPException(
         status_code=503,
-        detail=f"Gemini temporarily unavailable after retries: {last_error}",
+        detail=f"NVIDIA NIM temporarily unavailable after retries: {last_error}",
     )
 
 

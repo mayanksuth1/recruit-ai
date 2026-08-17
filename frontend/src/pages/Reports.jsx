@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, downloadFile } from '../lib/api'
+import ManualHelp, { ManualSection } from '../components/ManualHelp'
 
 const barColors = ['bg-peach', 'bg-butter', 'bg-mint', 'bg-babyblue', 'bg-lavender', 'bg-rosy']
 
@@ -85,7 +86,10 @@ export default function Reports() {
     <div className="max-w-4xl mx-auto p-8 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-cocoa">Reports</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-extrabold text-cocoa">Reports</h1>
+            <ManualHelp section="reports" />
+          </div>
           <p className="text-sm text-cocoa/60">
             {view === 'recruiter'
               ? 'Internal view — full detail including upcoming interviews.'
@@ -167,6 +171,8 @@ export default function Reports() {
           {reports.length === 0 && <p className="text-sm text-cocoa/45">No summaries yet — generate one above.</p>}
         </div>
       </div>
+
+      <ManualSection section="reports" />
     </div>
   )
 }

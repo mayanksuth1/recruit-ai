@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import ManualHelp, { ManualSection } from '../components/ManualHelp'
 
 const statusStyles = {
   pending: 'bg-butter/70 text-amber-800',
@@ -37,16 +38,38 @@ export default function RoleDetail() {
   const [matching, setMatching] = useState(false)
   const [boolSearch, setBoolSearch] = useState(null)
   const [boolBusy, setBoolBusy] = useState(false)
+  const [post, setPost] = useState('')          // editable draft text
+  const [postMeta, setPostMeta] = useState(null) // { model, generated_at }
+  const [postBusy, setPostBusy] = useState(false)
+  const [postSaved, setPostSaved] = useState(false)
+  const [postCopied, setPostCopied] = useState(false)
+  const [postElapsed, setPostElapsed] = useState(0)
+  const postRef = useRef(null)
+  const postTimer = useRef(null)
   const [selected, setSelected] = useState(new Set())
   const [notice, setNotice] = useState('')
   const [draftingIds, setDraftingIds] = useState(new Set())
   const [schedulingId, setSchedulingId] = useState(null) // candidate id with open panel
   const [schedForm, setSchedForm] = useState({ duration_minutes: 45, attendee: '' })
   const [schedBusy, setSchedBusy] = useState(false)
+  // { candidateId, link } — the raw token appears exactly once, in this
+  // response. It is not stored anywhere, so if it is lost the only remedy is
+  // issuing a new link.
+  const [aiLink, setAiLink] = useState(null)
+  const [aiBusy, setAiBusy] = useState(null)
 
   const load = async () => {
     try {
-      setRole(await api(`/api/roles/${roleId}`))
+      const r = await api(`/api/roles/${roleId}`)
+      setRole(r)
+      // The draft is a column on the role, so it rehydrates on every load —
+      // that is what makes an edited post survive a refresh.
+      setPost(r.linkedin_post_draft || '')
+      setPostMeta(
+        r.linkedin_post_generated_at
+          ? { model: r.linkedin_post_model, generated_at: r.linkedin_post_generated_at }
+          : null,
+      )
       setCandidates(await api(`/api/roles/${roleId}/candidates`))
     } catch (err) { setError(err.message) }
   }
@@ -85,6 +108,68 @@ export default function RoleDetail() {
       await load()
     } catch (err) { setError(err.message) }
     setMatching(false)
+  }
+
+  // Generate/regenerate. The endpoint stores the draft, so a reload brings it
+  // back via the role record — nothing here is publish-related.
+  //
+  // This call runs on the quality model and takes around three minutes. A
+  // static "Generating…" over that long reads as a hung page, so the elapsed
+  // count is the only signal that anything is still happening.
+  const generatePost = async () => {
+    setPostBusy(true)
+    setError('')
+    setPostSaved(false)
+    setPostElapsed(0)
+    clearInterval(postTimer.current)
+    postTimer.current = setInterval(() => setPostElapsed((s) => s + 1), 1000)
+    try {
+      const res = await api(`/api/roles/${roleId}/linkedin-post`, { method: 'POST' })
+      setPost(res.linkedin_post_draft)
+      setPostMeta({ model: res.linkedin_post_model, generated_at: res.linkedin_post_generated_at })
+    } catch (err) { setError(err.message) }
+    clearInterval(postTimer.current)
+    setPostBusy(false)
+  }
+
+  // Navigating away mid-generation would otherwise leave the interval ticking
+  // against an unmounted component.
+  useEffect(() => () => clearInterval(postTimer.current), [])
+
+  const savePost = async () => {
+    setPostBusy(true)
+    setError('')
+    try {
+      await api(`/api/roles/${roleId}/linkedin-post`, {
+        method: 'PUT',
+        body: { linkedin_post_draft: post },
+      })
+      setPostSaved(true)
+      setTimeout(() => setPostSaved(false), 1500)
+    } catch (err) { setError(err.message) }
+    setPostBusy(false)
+  }
+
+  // The async clipboard API rejects when the document is not focused or the
+  // page is not a secure context. Fall back to a selection-based copy, and if
+  // even that fails say so — a silent no-op looks identical to a successful
+  // copy and the user only finds out when they paste.
+  const copyPost = async () => {
+    setError('')
+    try {
+      await navigator.clipboard.writeText(post)
+    } catch {
+      const el = postRef.current
+      if (!el) { setError('Could not copy — select the text and copy manually.'); return }
+      el.focus()
+      el.select()
+      if (!document.execCommand?.('copy')) {
+        setError('Could not copy — select the text and copy manually.')
+        return
+      }
+    }
+    setPostCopied(true)
+    setTimeout(() => setPostCopied(false), 1500)
   }
 
   const generateBool = async () => {
@@ -175,6 +260,20 @@ export default function RoleDetail() {
     setSchedBusy(false)
   }
 
+  const issueAiInterview = async (candidateId) => {
+    setAiBusy(candidateId)
+    setError('')
+    setNotice('')
+    try {
+      const res = await api(`/api/candidates/${candidateId}/ai-interview`, {
+        method: 'POST', body: { role_id: roleId, question_target: 5 },
+      })
+      setAiLink({ candidateId, link: res.link })
+      setNotice('Interview link issued — send it to the candidate. It works once and expires in 72 hours.')
+    } catch (err) { setError(err.message) }
+    setAiBusy(null)
+  }
+
   const toggle = (id) => {
     setSelected((s) => {
       const next = new Set(s)
@@ -193,7 +292,10 @@ export default function RoleDetail() {
       <Link to="/" className="text-sm text-cocoa/60 hover:text-cocoa">&larr; All roles</Link>
       {role && (
         <div>
-          <h1 className="text-2xl font-extrabold text-cocoa">{role.title}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-extrabold text-cocoa">{role.title}</h1>
+            <ManualHelp section="roles" />
+          </div>
           <p className="text-sm text-cocoa/60 mt-1 whitespace-pre-wrap line-clamp-4">{role.description}</p>
         </div>
       )}
@@ -218,8 +320,59 @@ export default function RoleDetail() {
             className="rounded-full border-2 border-blush bg-white text-cocoa/80 px-4 py-2 text-sm font-medium disabled:opacity-50">
             {boolBusy ? 'Generating…' : 'Generate Boolean search'}
           </button>
+          <button onClick={generatePost} disabled={postBusy}
+            className="rounded-full border-2 border-blush bg-white text-cocoa/80 px-4 py-2 text-sm font-medium disabled:opacity-50">
+            {postBusy
+              ? `Writing the post… ${postElapsed}s`
+              : post ? 'Regenerate LinkedIn post' : 'Generate LinkedIn post'}
+          </button>
+          {postBusy && (
+            <p className="text-xs text-cocoa/45 text-center">
+              Usually takes 2–3 minutes. You can keep working — leaving this page cancels it.
+            </p>
+          )}
         </div>
       </div>
+
+      {post && (
+        <div className="card p-5 space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="font-medium text-cocoa/80">LinkedIn post draft</h2>
+            <span className="text-xs text-cocoa/45">
+              Draft only — copy it and post it yourself.
+            </span>
+          </div>
+
+          <textarea
+            ref={postRef}
+            rows={14}
+            value={post}
+            onChange={(e) => { setPost(e.target.value); setPostSaved(false) }}
+            className="w-full rounded-2xl border border-blush px-3 py-2 text-sm whitespace-pre-wrap"
+          />
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={copyPost}
+              className="rounded-full bg-cocoa text-cream shadow-md hover:scale-[1.03] active:scale-95 transition-transform px-4 py-2 text-sm font-medium">
+              {postCopied ? 'Copied!' : 'Copy'}
+            </button>
+            <button onClick={savePost} disabled={postBusy}
+              className="rounded-full border-2 border-blush bg-white text-cocoa/80 px-4 py-2 text-sm font-medium disabled:opacity-50">
+              {postSaved ? 'Saved!' : 'Save edits'}
+            </button>
+            <button onClick={generatePost} disabled={postBusy}
+              className="rounded-full border-2 border-blush bg-white text-cocoa/80 px-4 py-2 text-sm font-medium disabled:opacity-50">
+              {postBusy ? `Rewriting… ${postElapsed}s` : 'Regenerate'}
+            </button>
+            {postMeta?.generated_at && (
+              <span className="text-xs text-cocoa/45">
+                Generated {new Date(postMeta.generated_at).toLocaleString()}
+                {postMeta.model ? ` · ${postMeta.model}` : ''}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {boolSearch && (
         <div className="card p-5 space-y-4">
@@ -303,6 +456,11 @@ export default function RoleDetail() {
                       className="rounded-full bg-lavender text-indigo-900 hover:scale-[1.03] active:scale-95 transition-transform px-3 py-1.5 text-xs font-medium">
                       Schedule interview
                     </button>
+                    <button onClick={() => issueAiInterview(c.id)} disabled={aiBusy === c.id}
+                      className="rounded-full bg-mint text-teal-900 hover:scale-[1.03] active:scale-95 transition-transform px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                      title="Issue a single-use async AI interview link (5 questions, expires in 72h)">
+                      {aiBusy === c.id ? 'Issuing…' : 'AI interview'}
+                    </button>
                     {c.offer_approved_at ? (
                       <button onClick={() => approveOffer(c.id, true)}
                         className="rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 px-3 py-1.5 text-xs font-medium"
@@ -348,6 +506,15 @@ export default function RoleDetail() {
                   </button>
                 </div>
               )}
+              {aiLink?.candidateId === c.id && (
+                <div className="mt-3 rounded-lg bg-cream/70 border border-blush/60 p-3 space-y-2">
+                  <CopyBlock label="Single-use AI interview link — copy it now" text={aiLink.link} />
+                  <p className="text-xs text-cocoa/50">
+                    Only the hash of this token is stored, so it cannot be shown again.
+                    Lose it and you must issue a new link.
+                  </p>
+                </div>
+              )}
             </div>
           )
         })}
@@ -355,6 +522,8 @@ export default function RoleDetail() {
           <p className="text-sm text-cocoa/45">No candidates yet — upload resumes or match from the talent pool.</p>
         )}
       </div>
+
+      <ManualSection section="roles" />
     </div>
   )
 }

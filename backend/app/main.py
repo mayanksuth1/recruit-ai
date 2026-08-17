@@ -6,7 +6,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import ats, calendar, candidates, engagement, interviews, organizations, reports, roles, signup, talent_pool
+from .routers import (
+    ai_interviews, ats, calendar, candidates, company_profile, dashboard,
+    engagement, interviews, organizations, reports, roles, signup, talent_pool,
+)
 from .services import scheduler
 
 logger = logging.getLogger("uvicorn.error")
@@ -60,12 +63,15 @@ app.add_middleware(
 )
 
 app.include_router(organizations.router)
+app.include_router(dashboard.router)
+app.include_router(company_profile.router)
 app.include_router(roles.router)
 app.include_router(candidates.router)
 app.include_router(talent_pool.router)
 app.include_router(engagement.router)
 app.include_router(calendar.router)
 app.include_router(interviews.router)
+app.include_router(ai_interviews.router)
 app.include_router(ats.router)
 app.include_router(reports.router)
 app.include_router(signup.router)

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
+import ManualHelp, { ManualSection } from '../components/ManualHelp'
 
 export default function TalentPool() {
   const [pool, setPool] = useState([])
@@ -38,7 +39,10 @@ export default function TalentPool() {
   return (
     <div className="max-w-5xl mx-auto p-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold text-cocoa">Talent Pool</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-extrabold text-cocoa">Talent Pool</h1>
+          <ManualHelp section="talent-pool" />
+        </div>
         <p className="text-sm text-cocoa/60">
           Org-wide candidates that persist across roles. Import exported search
           results as CSV, or paste rows directly.
@@ -137,6 +141,8 @@ export default function TalentPool() {
         partner-API integration point exists at
         <code> backend/app/sourcing/connectors/linkedin.py</code>.
       </p>
+
+      <ManualSection section="talent-pool" />
     </div>
   )
 }
