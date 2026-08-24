@@ -23,6 +23,40 @@ candidate- or client-facing action.
 - **AI**: Gemini (`gemini-2.5-flash`) for scoring/extraction
 - **PDF**: pdfplumber
 
+## Local database (development)
+
+The hosted Supabase project this repo used to point at no longer exists, so
+development runs against a **local Supabase stack** (Docker required):
+
+```
+npx supabase start     # boots Postgres + Auth + PostgREST + Studio, applies
+                       # every migration in supabase/migrations/
+npx supabase stop      # shut down (data is kept; --no-backup to discard)
+npx supabase db reset  # rebuild from migrations + supabase/seed.sql
+```
+
+Ports are offset to 544xx so this stack can run alongside another local
+Supabase project:
+
+| Service | URL |
+|---|---|
+| API / PostgREST | http://127.0.0.1:54421 |
+| Postgres | `postgresql://postgres:postgres@127.0.0.1:54422/postgres` |
+| Studio | http://127.0.0.1:54423 |
+| Mailpit (captures all outbound auth mail) | http://127.0.0.1:54424 |
+
+`backend/.env` and `frontend/.env` already point here; the previous hosted
+values are kept in `*.env.bak-hosted-*`. Local keys are the CLI's fixed
+demo keys and are safe to commit-ignore as usual.
+
+`supabase/seed.sql` re-grants `anon`/`authenticated`/`service_role` privileges
+on `public`. Hosted projects grant these by default; the local images do not,
+and without it every PostgREST call fails with `42501 permission denied`. RLS
+is unaffected — tenancy is still enforced by the `is_org_member()` policies.
+
+To move back to a hosted project, run `setup-database.sql` in its SQL Editor
+and restore the two `.env` files.
+
 ## Setup
 
 1. **Apply the database migration**: paste
