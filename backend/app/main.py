@@ -80,3 +80,10 @@ app.include_router(signup.router)
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+# Self-host mode: serve the built frontend and proxy Supabase from this same
+# origin. Registered AFTER every router so the SPA catch-all cannot shadow an
+# API route. No-ops when frontend/dist has not been built.
+from . import selfhost  # noqa: E402  (import here: it must load after routers)
+
+selfhost.mount(app)
