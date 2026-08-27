@@ -29,6 +29,11 @@ param(
     [string]$OutDir = 'C:\recruit-ai-backups',
     [string]$Container = 'supabase_db_recruit-ai',
     [int]$KeepDays = 14,
+    # Where to mirror backups off this disk. Empty means auto-detect (see
+    # Resolve-Offsite). Pass -OffsiteDir '' -NoOffsite to skip entirely.
+    [string]$OffsiteDir,
+    [int]$OffsiteKeepDays = 60,
+    [switch]$NoOffsite,
     [switch]$List,
     [string]$Verify
 )
@@ -113,6 +118,74 @@ if ($LASTEXITCODE -ne 0) { Fail "The dump is not restorable - investigate now:`n
 $tableCount = ($toc | Select-String -Pattern 'TABLE DATA').Count
 if ($tableCount -lt 1) { Fail "The dump contains no table data at all." }
 Ok "verified restorable ($tableCount tables with data)"
+
+# ---- offsite copy -------------------------------------------------------
+# Backups on the same disk as the database survive a bad migration but not a
+# dead drive, a theft, or ransomware. This mirrors them somewhere else.
+function Resolve-Offsite {
+    if ($NoOffsite) { return $null }
+    # NOT $PSBoundParameters: inside a function that refers to the FUNCTION's
+    # bound parameters, which are none, so an explicit -OffsiteDir was silently
+    # ignored and auto-detection ran anyway. Test the variable directly.
+    if ($OffsiteDir) { return $OffsiteDir }
+    # Google Drive for Desktop mounts as a drive letter (G: by default) and
+    # streams rather than duplicating everything locally, so it is both the
+    # first choice and — being outside the home directory — the safe one.
+    foreach ($root in @('G:\My Drive', 'H:\My Drive', "$env:USERPROFILE\Google Drive")) {
+        if (Test-Path $root) { return (Join-Path $root 'recruit-ai-backups') }
+    }
+    # OneDrive is deliberately NOT auto-selected. Its folder lives inside the
+    # home directory, which is a git repo with a public remote — that is a
+    # decision to make on purpose, with a .gitignore entry in place, not a
+    # default that quietly starts mirroring candidate data into a repo.
+    # Opt in with: -OffsiteDir (Join-Path $env:OneDrive 'recruit-ai-backups')
+    return $null
+}
+
+$offsite = Resolve-Offsite
+if ($NoOffsite) {
+    Info "offsite copy skipped (-NoOffsite)"
+} elseif (-not $offsite) {
+    Warn "no offsite destination - these backups exist on one disk only"
+    Info "Install Google Drive for Desktop and sign in; this picks it up automatically."
+    Info "Or pass -OffsiteDir 'D:\wherever'. Use -NoOffsite to silence this."
+} else {
+    # The same trap as the local directory: anything under the home folder sits
+    # inside a git repo whose remote is public.
+    $home_ = [IO.Path]::GetFullPath($env:USERPROFILE)
+    $full  = [IO.Path]::GetFullPath($offsite)
+    if ($full.StartsWith($home_, [StringComparison]::OrdinalIgnoreCase) -and
+        (Test-Path (Join-Path $env:USERPROFILE '.git'))) {
+        Warn "$offsite is inside $env:USERPROFILE, which is a git repo with a PUBLIC remote."
+        Info "Add this line to $env:USERPROFILE\.gitignore before relying on it:"
+        Info "    $((Split-Path $offsite -Leaf))/"
+    }
+
+    try {
+        if (-not (Test-Path $offsite)) { New-Item -ItemType Directory -Path $offsite -Force | Out-Null }
+        $mirror = Join-Path $offsite $name
+        Copy-Item -Path $dest -Destination $mirror -Force
+
+        # Compare sizes: a sync client that is mid-upload, out of quota, or
+        # simply offline can leave a truncated file that looks present.
+        $srcLen = (Get-Item $dest).Length
+        $dstLen = (Get-Item $mirror).Length
+        if ($srcLen -ne $dstLen) { throw "copied $dstLen bytes but the source is $srcLen" }
+        Ok "mirrored to $offsite"
+
+        $ocut = (Get-Date).AddDays(-$OffsiteKeepDays)
+        $oold = Get-ChildItem $offsite -Filter '*.dump' | Where-Object { $_.LastWriteTime -lt $ocut }
+        if ($oold -and ((Get-ChildItem $offsite -Filter '*.dump').Count - $oold.Count) -ge 1) {
+            $oold | Remove-Item -Force
+            Ok "rotated $($oold.Count) offsite backup(s) older than $OffsiteKeepDays days"
+        }
+    } catch {
+        # A failed mirror must not fail the backup: the local copy is already
+        # written and verified, and that is the more important of the two.
+        Warn "offsite copy to $offsite failed: $($_.Exception.Message)"
+        Info "The local backup is fine. Fix the destination and re-run."
+    }
+}
 
 # ---- rotate -------------------------------------------------------------
 $cutoff = (Get-Date).AddDays(-$KeepDays)

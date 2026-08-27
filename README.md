@@ -74,6 +74,32 @@ Dumps cover `public` (your data) and `auth` (the accounts), custom format,
 14-day rotation. Every backup is read back with `pg_restore --list` immediately
 after being written — an unverified backup is a guess.
 
+### Offsite copies
+
+Backups on the same disk as the database survive a bad migration but not a dead
+drive, a theft, or ransomware. After each verified backup the script mirrors it:
+
+```
+scripts\backup-db.ps1                          # auto-detect (Google Drive)
+scripts\backup-db.ps1 -OffsiteDir "D:\backups" # explicit destination
+scripts\backup-db.ps1 -NoOffsite               # local only, no warning
+```
+
+Auto-detection looks for Google Drive for Desktop (`G:\My Drive`, `H:\My Drive`,
+`~\Google Drive`). Install it and sign in and this starts working with no
+further configuration — until then the script says plainly that backups exist
+on one disk only rather than pretending otherwise.
+
+**OneDrive is deliberately not auto-selected** even though it is linked on this
+machine: its folder is inside the home directory, i.e. inside a git repo with a
+public remote. Mirroring candidate data there should be a deliberate choice with
+a `.gitignore` entry in place, so it needs an explicit `-OffsiteDir`. The script
+warns whenever the chosen destination falls inside that repo.
+
+A failed mirror never fails the backup — the local copy is already written and
+verified, and that is the more important of the two. Offsite copies rotate at 60
+days rather than the local 14.
+
 **Backups live outside the home directory on purpose.** `C:\Users\jamba` is a
 git repo whose remote is public; a dump written under it would be one
 `git add -A` away from publishing every candidate record and auth user.
