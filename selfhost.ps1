@@ -19,11 +19,17 @@
 [CmdletBinding()]
 param(
     [switch]$Public,
-    [int]$Port = 8000
+    [int]$Port = 8000,
+    # On a cold boot Docker Desktop takes a minute or two to accept
+    # connections. Anything launched at logon must wait rather than fail.
+    [int]$WaitForDockerMinutes = 0
 )
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+# Where the current public hostname is recorded, so it survives the console
+# window that printed it.
+$urlFile = Join-Path $root '.public-url.txt'
 
 function Info($m) { Write-Host "  $m" }
 function Ok($m)   { Write-Host "  + $m" -ForegroundColor Green }
@@ -34,7 +40,17 @@ Write-Host "`nRecruit AI - self-hosted`n"
 
 # --- 1. Docker + Supabase -------------------------------------------------
 Write-Host "Database"
-try { docker version --format '{{.Server.Version}}' | Out-Null } catch {
+$dockerUp = $false
+$deadline = (Get-Date).AddMinutes([Math]::Max($WaitForDockerMinutes, 0))
+do {
+    try { docker version --format '{{.Server.Version}}' 2>$null | Out-Null; $dockerUp = ($LASTEXITCODE -eq 0) } catch { $dockerUp = $false }
+    if (-not $dockerUp -and (Get-Date) -lt $deadline) {
+        Info 'waiting for Docker to accept connections...'
+        Start-Sleep -Seconds 15
+    }
+} while (-not $dockerUp -and (Get-Date) -lt $deadline)
+
+if (-not $dockerUp) {
     Fail "Docker is not running. Start Docker Desktop, then re-run this script.
     If it crash-loops on startup, rename these two folders aside and try again:
       `$env:LOCALAPPDATA\Docker\run
@@ -100,18 +116,75 @@ Write-Host "`n  Local:  http://localhost:$Port" -ForegroundColor Cyan
 # --- 4. Public tunnel -----------------------------------------------------
 if ($Public) {
     Write-Host "`nPublic URL"
+    # Not just Get-Command: winget writes cloudflared to the MACHINE PATH, and
+    # a shell started before that (or a service session) still has the old one.
+    # Fall back to the known install locations rather than claiming it is missing.
     $cf = Get-Command cloudflared -ErrorAction SilentlyContinue
+    if (-not $cf) {
+        foreach ($p in @("$env:ProgramFiles\cloudflared\cloudflared.exe",
+                         "${env:ProgramFiles(x86)}\cloudflared\cloudflared.exe",
+                         "$env:LOCALAPPDATA\Microsoft\WinGet\Links\cloudflared.exe")) {
+            if (Test-Path $p) { $cf = [pscustomobject]@{ Source = $p }; break }
+        }
+    }
     if (-not $cf) {
         Warn "cloudflared is not installed. Install it with:"
         Info "    winget install Cloudflare.cloudflared"
         Info "then re-run with -Public."
+    } elseif (Get-Process cloudflared -ErrorAction SilentlyContinue) {
+        Warn "cloudflared is already running - leaving it alone"
+        if (Test-Path $urlFile) { Info "current URL: $(Get-Content $urlFile -Raw)".Trim() }
+        Info "Kill it first if you want a fresh tunnel: Stop-Process -Name cloudflared"
     } else {
-        Info "opening a Cloudflare quick tunnel..."
-        Info "The URL is printed in the cloudflared window that opens."
-        Warn "A quick tunnel's URL CHANGES every restart. For a URL that stays put"
-        Info "you need a domain on Cloudflare and a named tunnel."
-        Start-Process -FilePath $cf.Source `
-            -ArgumentList 'tunnel','--url',"http://localhost:$Port"
+        # cloudflared prints the assigned hostname to stderr and nowhere else.
+        # A quick tunnel gets a NEW name every start, so it has to be captured
+        # and written down - otherwise after a reboot the app is up and running
+        # at an address nobody knows.
+        $log = Join-Path $root '.cloudflared.log'
+        Remove-Item $log -ErrorAction SilentlyContinue
+        # Two traps avoided here.
+        #
+        # 1. Start-Process's own -RedirectStandardError keeps the stream handles
+        #    open in THIS process, so PowerShell never exits and the launcher
+        #    hangs forever - the app is up but your terminal never returns.
+        # 2. Passing the redirection inline via `cmd /c "..."` looks like the
+        #    fix, but cmd's nested-quote parsing mangles a quoted exe path plus
+        #    a quoted redirect target, and the process silently never starts.
+        #
+        # A generated .cmd file sidesteps both: it owns its quoting, and we hold
+        # no handles on it.
+        $runner = Join-Path $root '.run-tunnel.cmd'
+        Set-Content -Path $runner -Encoding ascii -Value @(
+            '@echo off',
+            ('"{0}" tunnel --url http://localhost:{1} > "{2}" 2>&1' -f $cf.Source, $Port, $log)
+        )
+        Start-Process -FilePath $runner -WindowStyle Hidden
+
+        Info "waiting for Cloudflare to assign a hostname..."
+        $url = $null
+        foreach ($i in 1..40) {
+            Start-Sleep -Milliseconds 750
+            if (Test-Path $log) {
+                $m = Select-String -Path $log -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' -ErrorAction SilentlyContinue
+                if ($m) { $url = $m.Matches[0].Value; break }
+            }
+        }
+
+        if ($url) {
+            # WriteAllText, not Set-Content -Encoding utf8: PowerShell 5.1 writes a
+            # UTF-8 BOM, and anything reading this file naively (curl $(cat ...),
+            # a shell script, another language) gets three invisible bytes glued to
+            # the front of the hostname.
+            [IO.File]::WriteAllText($urlFile, $url)
+            Ok "public URL assigned"
+            Write-Host "`n  Public: $url" -ForegroundColor Cyan
+            Info "(also saved to $urlFile)"
+            Warn "This URL CHANGES every time the tunnel restarts. A stable one needs"
+            Info "a domain on Cloudflare and a named tunnel, or Tailscale Funnel."
+        } else {
+            Warn "cloudflared started but no hostname appeared within 30s."
+            Info "Check $log"
+        }
     }
 }
 

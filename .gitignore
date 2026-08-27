@@ -10,3 +10,9 @@ dist/
 config.env 
 .env.bak-*
 .env.supabase.local
+
+# Runtime artefacts from selfhost.ps1 — the current tunnel hostname and its log.
+.public-url.txt
+.cloudflared.log
+.cloudflared.log.out
+.run-tunnel.cmd
