@@ -92,9 +92,17 @@ on one disk only rather than pretending otherwise.
 
 **OneDrive is deliberately not auto-selected** even though it is linked on this
 machine: its folder is inside the home directory, i.e. inside a git repo with a
-public remote. Mirroring candidate data there should be a deliberate choice with
-a `.gitignore` entry in place, so it needs an explicit `-OffsiteDir`. The script
-warns whenever the chosen destination falls inside that repo.
+public remote. Mirroring candidate data there has to be a deliberate choice with
+an ignore rule in place, so it needs an explicit `-OffsiteDir`. The script warns
+whenever the chosen destination falls inside that repo.
+
+**Currently in use:** the scheduled task passes
+`-OffsiteDir "%OneDrive%\recruit-ai-backups"`, chosen explicitly so the
+destination is visible in the task definition rather than hidden inside
+auto-detection. The folder is excluded via `~/.git/info/exclude` — local-only,
+so the rule itself is never pushed to the public remote. If that exclude file is
+ever lost, dumps of every candidate and auth user become committable again;
+re-add the rule before running another backup.
 
 A failed mirror never fails the backup — the local copy is already written and
 verified, and that is the more important of the two. Offsite copies rotate at 60
