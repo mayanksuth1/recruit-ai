@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     # Until a domain is verified in Resend, only onboarding@resend.dev works
     # as sender and delivery is restricted to the Resend account owner's email.
     email_from: str = "Recruit AI <onboarding@resend.dev>"
+    # Sending from resend.dev silently reaches nobody except the Resend account
+    # owner: Resend accepts the call and returns an id, the outbox row goes
+    # green, and the candidate never hears from you. That is the worst possible
+    # failure for an outreach product, so it is refused unless someone opts in
+    # on purpose. Set true for local development; never set it in production.
+    allow_sandbox_email: bool = False
     google_client_id: str = ""
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/calendar/oauth/callback"

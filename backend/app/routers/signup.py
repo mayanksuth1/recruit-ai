@@ -5,11 +5,12 @@ confirmed, and the organization is bootstrapped in the same call — so the
 user can sign in with their password immediately after signing up.
 """
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 
 from ..config import settings
 from ..db import service_client
+from ..ratelimit import limiter
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -20,7 +21,12 @@ class SignupRequest(BaseModel):
     organization_name: str = Field(min_length=1, max_length=200)
 
 
-@router.post("/signup", status_code=201)
+# Open registration: anyone on the internet can call this, and each call
+# creates a Supabase user plus an organization. Six per hour per address
+# leaves room for genuine retries and typo-fixes without letting a script
+# fill the project with junk tenants.
+@router.post("/signup", status_code=201,
+             dependencies=[Depends(limiter("signup", limit=6, window_seconds=3600))])
 def signup(body: SignupRequest):
     resp = httpx.post(
         f"{settings.supabase_url}/auth/v1/admin/users",

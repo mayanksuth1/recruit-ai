@@ -23,6 +23,7 @@ from postgrest.exceptions import APIError
 from ..auth import CurrentUser, require_org
 from ..config import settings
 from ..db import service_client
+from ..ratelimit import limiter
 from ..services import ai_interview, embeddings
 
 router = APIRouter(prefix="/api", tags=["ai-interviews"])
@@ -176,17 +177,25 @@ def _candidate_view(session: dict) -> dict:
 # Public, unauthenticated — the candidate's interview link
 # ---------------------------------------------------------------------------
 
-@router.get("/public/ai-interview/{token}")
+@router.get("/public/ai-interview/{token}",
+            dependencies=[Depends(limiter("ai_interview_read", limit=120, window_seconds=300))])
 def public_get_interview(token: str):
     return _candidate_view(_session_by_token(token))
 
 
 class AnswerBody(BaseModel):
     ordinal: int = Field(ge=1, le=20)
-    answer: str = Field(min_length=1)
+    # Bounded because this text is public input that goes straight to the
+    # model: an unbounded answer is an unbounded bill and an unbounded
+    # latency. 8000 characters is far longer than any real spoken answer
+    # (roughly 1300 words) while keeping a turn's prompt predictable.
+    answer: str = Field(min_length=1, max_length=8000)
 
 
-@router.post("/public/ai-interview/{token}")
+# Each accepted answer runs a model call, so this is the most expensive
+# unauthenticated route in the app. A real interview is <= 20 turns.
+@router.post("/public/ai-interview/{token}",
+             dependencies=[Depends(limiter("ai_interview_answer", limit=40, window_seconds=300))])
 def public_submit_answer(token: str, body: AnswerBody):
     session = _session_by_token(token)
     state = _state(session["id"])

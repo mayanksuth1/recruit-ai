@@ -13,6 +13,19 @@ def send_email(to: str, subject: str, body: str) -> str:
     """Returns the Resend email id."""
     if not settings.resend_api_key:
         raise HTTPException(status_code=503, detail="RESEND_API_KEY is not configured")
+    if "resend.dev" in settings.email_from and not settings.allow_sandbox_email:
+        # Fail here rather than let Resend return a cheerful id for a message
+        # only the account owner will ever see.
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "EMAIL_FROM is still the Resend sandbox sender (resend.dev), which only "
+                "delivers to the Resend account owner — candidates would never receive this. "
+                "Verify a domain at resend.com/domains and set EMAIL_FROM to an address on "
+                "it, e.g. \"Your Name <hello@yourdomain.com>\". For local testing only, set "
+                "ALLOW_SANDBOX_EMAIL=true."
+            ),
+        )
     resp = httpx.post(
         f"{RESEND_API}/emails",
         headers={"Authorization": f"Bearer {settings.resend_api_key}"},

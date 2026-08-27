@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from ..auth import CurrentUser, require_org
 from ..db import service_client
+from ..ratelimit import limiter
 from ..services import ats
 from ..services.email import send_email  # noqa: F401  (imported for future use)
 
@@ -83,7 +84,10 @@ class InboundEvent(BaseModel):
     stage: str | None = None
 
 
-@router.post("/webhooks/ats/{inbound_token}")
+# The HMAC check below is the real gate; this only stops an unsigned
+# flood from costing us the verification work on every request.
+@router.post("/webhooks/ats/{inbound_token}",
+             dependencies=[Depends(limiter("ats_inbound", limit=300, window_seconds=60))])
 async def inbound_webhook(inbound_token: str, request: Request):
     db = service_client()
     rows = db.table("ats_connections").select("*").eq("inbound_token", inbound_token).eq("active", True).execute().data

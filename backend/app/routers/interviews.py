@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from ..auth import CurrentUser, require_org
 from ..config import settings
 from ..db import service_client
+from ..ratelimit import limiter
 from ..services import google_calendar as gcal
 from ..services import scheduler
 
@@ -206,7 +207,8 @@ class SlotChoice(BaseModel):
     start: str  # must match one of the proposed slots
 
 
-@router.post("/public/schedule/{token}")
+@router.post("/public/schedule/{token}",
+             dependencies=[Depends(limiter("schedule_select", limit=30, window_seconds=300))])
 def public_select_slot(token: str, body: SlotChoice):
     iv = _interview_by_token(token)
     if iv["status"] != "proposed":
