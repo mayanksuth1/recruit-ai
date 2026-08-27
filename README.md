@@ -57,6 +57,36 @@ is unaffected — tenancy is still enforced by the `is_org_member()` policies.
 To move back to a hosted project, run `setup-database.sql` in its SQL Editor
 and restore the two `.env` files.
 
+## Backups
+
+Self-hosting means no managed snapshots — `C:\recruit-ai-backups` is the only
+way back from a dead disk or a bad migration. A scheduled task
+(`RecruitAI-DatabaseBackup`) runs nightly at 02:00 and catches up on next boot
+if the machine was off.
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\backup-db.ps1          # back up now
+powershell -ExecutionPolicy Bypass -File scripts\backup-db.ps1 -List    # what exists
+powershell -ExecutionPolicy Bypass -File scripts\restore-db.ps1 -Drill  # rehearse a restore
+```
+
+Dumps cover `public` (your data) and `auth` (the accounts), custom format,
+14-day rotation. Every backup is read back with `pg_restore --list` immediately
+after being written — an unverified backup is a guess.
+
+**Backups live outside the home directory on purpose.** `C:\Users\jamba` is a
+git repo whose remote is public; a dump written under it would be one
+`git add -A` away from publishing every candidate record and auth user.
+
+**Restoring needs more than the dump.** `public.ai_embeddings` has a
+`vector(1024)` column and `vector` lives in the `extensions` schema, which
+isn't in the dump — extensions are installed into a database, not carried
+inside one. Restore into a bare database and that one table silently fails to
+create while everything else succeeds, so spot-checked row counts still match.
+`restore-db.ps1` installs the prerequisites first and then asserts 19 tables
+rather than trusting the exit code. Run `-Drill` occasionally: it restores into
+a scratch database and never touches live data.
+
 ## Setup
 
 1. **Apply the database migration**: paste
