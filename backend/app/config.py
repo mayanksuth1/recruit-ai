@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # post and the interview transcript scoring. Do not make it the default:
     # at ~101s a call it would put minutes into every screen in the app.
     nvidia_model: str = "openai/gpt-oss-20b"
-    nvidia_quality_model: str = "z-ai/glm-5.2"
+    nvidia_quality_model: str = "openai/gpt-oss-20b"
     nvidia_fallback_model: str = "openai/gpt-oss-20b"
     # 1024-dimensional; ai_embeddings.embedding is vector(1024) to match (0011).
     nvidia_embedding_model: str = "nvidia/nv-embedqa-e5-v5"

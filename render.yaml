@@ -25,7 +25,7 @@ services:
       - key: NVIDIA_FALLBACK_MODEL
         value: openai/gpt-oss-20b
       - key: NVIDIA_QUALITY_MODEL
-        value: z-ai/glm-5.2
+        value: openai/gpt-oss-20b
       - key: NVIDIA_EMBEDDING_MODEL
         value: nvidia/nv-embedqa-e5-v5
       - key: RESEND_API_KEY
