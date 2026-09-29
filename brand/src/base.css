@@ -1,0 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:var(--w);height:var(--h);overflow:hidden}
+body{font-family:Nunito,sans-serif;color:#5c5049;background:
+ radial-gradient(calc(var(--w)*.55) calc(var(--h)*.9) at 105% -10%, rgba(248,200,176,.75), transparent 60%),
+ radial-gradient(calc(var(--w)*.5) calc(var(--h)*.8) at -10% 20%, rgba(199,197,238,.6), transparent 60%),
+ radial-gradient(calc(var(--w)*.5) calc(var(--h)*.7) at 55% 125%, rgba(191,230,221,.7), transparent 60%),#f6efe9;position:relative}
+.mark{display:grid;place-items:center;border-radius:28%;background:linear-gradient(145deg,#f8c8b0,#f3b8c3);box-shadow:0 20px 50px -20px rgba(92,80,73,.45)}
+.mark svg{width:62%;height:62%}
+.pill{display:inline-block;border-radius:999px;background:#fff;padding:.35em .9em;font-weight:800;box-shadow:0 10px 30px -16px rgba(92,80,73,.4)}
+.accent{color:#c86f52}

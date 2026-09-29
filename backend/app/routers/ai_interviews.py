@@ -251,6 +251,19 @@ def issue_interview_link(candidate_id: str, body: IssueBody, user: CurrentUser =
     if not cand:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
+    # role_id arrives from the client, and everything downstream reads the role
+    # through the service role without an org filter (_role_context). Unchecked,
+    # another organization's role id would put its title and job description
+    # into this interview's questions — a cross-tenant read.
+    if body.role_id:
+        own = (
+            db.table("roles").select("id")
+            .eq("id", body.role_id).eq("organization_id", user.organization_id)
+            .execute().data
+        )
+        if not own:
+            raise HTTPException(status_code=404, detail="Role not found")
+
     raw = secrets.token_urlsafe(32)
     session = db.table("ai_interview_sessions").insert({
         "organization_id": user.organization_id,
@@ -373,7 +386,7 @@ def score_ai_interview(session_id: str, user: CurrentUser = Depends(require_org)
 # ---------------------------------------------------------------------------
 
 class SearchBody(BaseModel):
-    query: str = Field(min_length=2)
+    query: str = Field(min_length=2, max_length=2000)
     limit: int = Field(default=20, ge=1, le=100)
     kinds: list[str] = ["profile", "transcript"]
 

@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import RedirectResponse
 
@@ -27,7 +29,9 @@ def oauth_callback(state: str = "", code: str = "", error: str = ""):
     """Google redirects the recruiter's browser here. No bearer token —
     identity comes from the one-time state nonce created at /oauth/start."""
     if error or not code:
-        return RedirectResponse(f"{settings.frontend_url}/settings?calendar=error&reason={error or 'no_code'}")
+        # `error` comes from the query string, i.e. from whoever built the link.
+        reason = quote((error or "no_code")[:100], safe="")
+        return RedirectResponse(f"{settings.frontend_url}/settings?calendar=error&reason={reason}")
     st = gcal.consume_state(state)
     if not st:
         return RedirectResponse(f"{settings.frontend_url}/settings?calendar=error&reason=bad_state")

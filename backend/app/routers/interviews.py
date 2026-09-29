@@ -9,7 +9,7 @@ attendees the candidate chose to meet.
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from ..auth import CurrentUser, require_org
 from ..config import settings
@@ -25,7 +25,9 @@ class ProposeRequest(BaseModel):
     duration_minutes: int = Field(default=45, ge=15, le=240)
     days_ahead: int = Field(default=5, ge=1, le=20)
     slots_wanted: int = Field(default=5, ge=2, le=12)
-    attendee_emails: list[str] = []  # e.g. hiring manager
+    # Each address gets a real Google Calendar invite from the recruiter, so the
+    # list is validated and capped rather than taken as free text.
+    attendee_emails: list[EmailStr] = Field(default=[], max_length=10)  # e.g. hiring manager
 
 
 @router.post("/candidates/{candidate_id}/interviews/propose", status_code=201)
@@ -117,7 +119,7 @@ def list_interviews(user: CurrentUser = Depends(require_org)):
 
 
 class FeedbackBody(BaseModel):
-    feedback: str = Field(min_length=1)
+    feedback: str = Field(min_length=1, max_length=20000)
 
 
 @router.patch("/interviews/{interview_id}/feedback")
@@ -160,7 +162,10 @@ def cancel_interview(interview_id: str, user: CurrentUser = Depends(require_org)
     return db.table("interviews").update({"status": "cancelled"}).eq("id", interview_id).execute().data[0]
 
 
-@router.post("/scheduler/run-checks")
+# The pass covers EVERY organization, not the caller's, so any signed-in user
+# can trigger it; the limit stops that becoming a way to hammer the model API.
+@router.post("/scheduler/run-checks",
+             dependencies=[Depends(limiter("scheduler_run", limit=5, window_seconds=600))])
 def run_scheduler_checks(user: CurrentUser = Depends(require_org)):
     """Manually trigger the reminder/nudge pass (it also runs on an interval)."""
     return scheduler.run_checks()
@@ -178,7 +183,8 @@ def _interview_by_token(token: str) -> dict:
     return rows[0]
 
 
-@router.get("/public/schedule/{token}")
+@router.get("/public/schedule/{token}",
+            dependencies=[Depends(limiter("schedule_read", limit=120, window_seconds=300))])
 def public_get_schedule(token: str):
     iv = _interview_by_token(token)
     db = service_client()
@@ -204,7 +210,7 @@ def public_get_schedule(token: str):
 
 
 class SlotChoice(BaseModel):
-    start: str  # must match one of the proposed slots
+    start: str = Field(max_length=64)  # must match one of the proposed slots
 
 
 @router.post("/public/schedule/{token}",

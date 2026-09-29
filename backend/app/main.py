@@ -2,8 +2,9 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .config import settings
 from .routers import (
@@ -52,7 +53,107 @@ async def lifespan(app: FastAPI):
         t.cancel()
 
 
-app = FastAPI(title="Recruit AI", version="0.4.0", lifespan=lifespan)
+# The interactive docs list every route, parameter and schema: a free map for
+# anyone probing the public URL. Off unless explicitly enabled for development.
+_docs = settings.expose_api_docs
+app = FastAPI(
+    title="Recruit AI", version="0.4.0", lifespan=lifespan,
+    docs_url="/docs" if _docs else None,
+    redoc_url="/redoc" if _docs else None,
+    openapi_url="/openapi.json" if _docs else None,
+)
+
+# Largest legitimate body is a 10 MB resume PDF plus multipart overhead.
+MAX_BODY_BYTES = 12 * 1024 * 1024
+
+# Only what the built frontend actually loads: its own bundle, Google Fonts,
+# and XHR to this origin (API and the /supabase auth proxy) or to a Supabase
+# URL baked in at build time. No inline script, no framing.
+_CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data:",
+    f"connect-src 'self' {settings.supabase_url.rstrip('/')}",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+])
+
+
+class _BodyTooLarge(Exception):
+    pass
+
+
+class BodyLimitMiddleware:
+    """Cap request bodies by counting the bytes actually received.
+
+    Checking Content-Length alone is not enough: a chunked upload carries no
+    length header, and Starlette would spool the whole thing to disk before a
+    route ever sees it. Counting in receive() stops it at the limit.
+    """
+
+    def __init__(self, app, max_bytes: int):
+        self.app, self.max_bytes = app, max_bytes
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        for name, value in scope.get("headers", []):
+            if name == b"content-length" and value.isdigit() and int(value) > self.max_bytes:
+                return await JSONResponse({"detail": "Request body too large"}, status_code=413)(scope, receive, send)
+
+        seen = 0
+        started = False
+
+        async def counted_receive():
+            nonlocal seen
+            message = await receive()
+            if message["type"] == "http.request":
+                seen += len(message.get("body", b""))
+                if seen > self.max_bytes:
+                    raise _BodyTooLarge
+            return message
+
+        async def tracked_send(message):
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, counted_receive, tracked_send)
+        except _BodyTooLarge:
+            if not started:
+                await JSONResponse({"detail": "Request body too large"}, status_code=413)(scope, receive, send)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    h = response.headers
+    h.setdefault("X-Content-Type-Options", "nosniff")
+    h.setdefault("X-Frame-Options", "DENY")
+    # Candidate links carry their credential in the path (/schedule/<token>,
+    # /ai-interview/<token>); never hand that URL to another site as a Referer.
+    h.setdefault("Referrer-Policy", "no-referrer")
+    h.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+    h.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    h.setdefault("Content-Security-Policy", _CSP)
+    if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
+        h.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    if request.url.path.startswith("/api/"):
+        # Candidate data must not linger in shared or browser caches.
+        h.setdefault("Cache-Control", "no-store")
+    # Do not advertise the server stack.
+    if "server" in h:
+        del h["server"]
+    return response
+
+
+app.add_middleware(BodyLimitMiddleware, max_bytes=MAX_BODY_BYTES)
 
 app.add_middleware(
     CORSMiddleware,

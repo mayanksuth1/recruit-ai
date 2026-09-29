@@ -12,13 +12,13 @@ router = APIRouter(prefix="/api/roles", tags=["roles"])
 
 class RoleCreate(BaseModel):
     title: str = Field(min_length=1, max_length=300)
-    description: str = ""
+    description: str = Field(default="", max_length=50000)
 
 
 class RoleUpdate(BaseModel):
-    title: str | None = None
-    description: str | None = None
-    status: str | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    description: str | None = Field(default=None, max_length=50000)
+    status: str | None = Field(default=None, max_length=50)
 
 
 class LinkedInDraftUpdate(BaseModel):

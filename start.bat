@@ -9,7 +9,7 @@ set ROOT=%~dp0
 rem Free port 8000 if a stale backend is still holding it
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 
-start "Recruit AI - Backend (close to stop)" cmd /k "cd /d %ROOT%backend && .venv\Scripts\python -m uvicorn app.main:app --port 8000"
+start "Recruit AI - Backend (close to stop)" cmd /k "cd /d %ROOT%backend && .venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --no-server-header"
 start "Recruit AI - Frontend (close to stop)" cmd /k "cd /d %ROOT%frontend && npm run dev"
 
 echo Starting Recruit AI... the app will open in your browser shortly.

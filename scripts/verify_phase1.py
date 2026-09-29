@@ -17,7 +17,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", "backend", ".env"))
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SECRET_KEY = os.environ["SUPABASE_SECRET_KEY"]
-API = "http://localhost:8000"
+API = os.environ.get("API", "http://127.0.0.1:8000")
 
 admin_headers = {"apikey": SECRET_KEY, "Authorization": f"Bearer {SECRET_KEY}"}
 failures = []
@@ -74,22 +74,17 @@ def main():
     check("A cannot fetch B's role by id", backend(token_a, "GET", f"/api/roles/{role_b['id']}").status_code == 404)
     check("B cannot update A's role", backend(token_b, "PATCH", f"/api/roles/{role_a['id']}", json={"title": "hacked"}).status_code == 404)
 
-    print("\nRLS isolation (direct PostgREST with user tokens):")
-    def rest(token: str, query: str):
-        r = httpx.get(
-            f"{SUPABASE_URL}/rest/v1/{query}",
-            headers={"apikey": SECRET_KEY, "Authorization": f"Bearer {token}"},
+    print("\nDirect database access with user tokens:")
+    # The browser uses Supabase for sign-in only; every data call goes through
+    # the backend. So user tokens hold NO table grants at all, and RLS
+    # (is_org_member) remains a second wall behind that.
+    for q in ("roles?select=id", "organizations?select=name", "candidates?select=id"):
+        st = httpx.get(
+            f"{SUPABASE_URL}/rest/v1/{q}",
+            headers={"apikey": SECRET_KEY, "Authorization": f"Bearer {token_a}"},
             timeout=15,
-        )
-        r.raise_for_status()
-        return r.json()
-
-    rows_a = rest(token_a, "roles?select=id")
-    rows_b = rest(token_b, "roles?select=id")
-    check("RLS: A's token returns only A's rows", [r["id"] for r in rows_a] == [role_a["id"]], str(rows_a))
-    check("RLS: B's token returns only B's rows", [r["id"] for r in rows_b] == [role_b["id"]], str(rows_b))
-    orgs_a = rest(token_a, "organizations?select=name")
-    check("RLS: A sees only own organization", [o["name"] for o in orgs_a] == ["Org Alpha"], str(orgs_a))
+        ).status_code
+        check(f"user token refused on {q.split('?')[0]}", st in (401, 403), str(st))
 
     print()
     if failures:

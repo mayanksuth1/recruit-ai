@@ -34,7 +34,14 @@ def signup(body: SignupRequest):
             "apikey": settings.supabase_secret_key,
             "Authorization": f"Bearer {settings.supabase_secret_key}",
         },
-        json={"email": body.email, "password": body.password, "email_confirm": True},
+        # email_confirm=True marks the address confirmed WITHOUT sending
+        # anything, which is what lets signup work with no mail server.
+        # Inverting it hands verification back to Supabase Auth.
+        json={
+            "email": body.email,
+            "password": body.password,
+            "email_confirm": not settings.require_email_verification,
+        },
         timeout=20,
     )
     if resp.status_code == 422 or (resp.status_code == 400 and "already" in resp.text.lower()):
@@ -54,4 +61,9 @@ def signup(body: SignupRequest):
     db.table("organization_members").insert(
         {"organization_id": org["id"], "user_id": user_id, "member_role": "owner"}
     ).execute()
-    return {"ok": True}
+    return {
+        "ok": True,
+        # The frontend needs to know whether to say "you're in" or "check
+        # your inbox", and only the server knows which mode this is.
+        "verification_required": settings.require_email_verification,
+    }

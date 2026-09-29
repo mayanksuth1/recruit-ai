@@ -9,7 +9,7 @@ Approval gate 2 applies to inbound events too: a remote system cannot move a
 candidate to 'offer' or 'closed' unless a human approved it here first.
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..auth import CurrentUser, require_org
 from ..db import service_client
@@ -24,8 +24,8 @@ GATED_STAGES = ("offer", "closed")
 
 
 class ConnectionUpdate(BaseModel):
-    outbound_url: str | None = None
-    secret: str | None = None
+    outbound_url: str | None = Field(default=None, max_length=2000)
+    secret: str | None = Field(default=None, max_length=500)
     active: bool = True
 
 
@@ -48,7 +48,13 @@ def get_connection(user: CurrentUser = Depends(require_org)):
 def update_connection(body: ConnectionUpdate, user: CurrentUser = Depends(require_org)):
     db = service_client()
     rows = db.table("ats_connections").select("id").eq("organization_id", user.organization_id).execute().data
-    updates = {"outbound_url": body.outbound_url, "active": body.active}
+    outbound_url = (body.outbound_url or "").strip() or None
+    if outbound_url:
+        try:
+            outbound_url = ats.check_outbound_url(outbound_url)
+        except ats.UnsafeURL as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    updates = {"outbound_url": outbound_url, "active": body.active}
     if body.secret is not None:
         updates["secret"] = body.secret or None
     if rows:

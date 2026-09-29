@@ -58,6 +58,16 @@ class Settings(BaseSettings):
     # failure for an outreach product, so it is refused unless someone opts in
     # on purpose. Set true for local development; never set it in production.
     allow_sandbox_email: bool = False
+    # Whether a new account must click a link in its inbox before it works.
+    #
+    # Defaults to FALSE, and that default is load-bearing: turning this on while
+    # outbound mail cannot actually reach strangers would mean nobody can ever
+    # finish signing up. Enable it only once EMAIL_FROM is a verified domain —
+    # the same switch that makes candidate outreach work.
+    #
+    # Until then anyone can register with an address they do not own, which is
+    # fine for a demo and wrong for a public product. See signup.py.
+    require_email_verification: bool = False
     google_client_id: str = ""
     google_client_secret: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/calendar/oauth/callback"
@@ -65,6 +75,9 @@ class Settings(BaseSettings):
     scheduler_timezone: str = "Asia/Kolkata"
     scheduler_interval_seconds: int = 900
     cors_origins: str = "http://localhost:5173"
+    # Serve /docs, /redoc and /openapi.json. Leave false anywhere reachable
+    # from the internet: they are a complete map of the API for an attacker.
+    expose_api_docs: bool = False
 
     @property
     def cors_origin_list(self) -> list[str]:

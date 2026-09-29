@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { api, apiUrl } from '../lib/api'
+import GoogleButton, { OrDivider } from '../components/GoogleButton'
 
 export default function Signup() {
   const [orgName, setOrgName] = useState('')
@@ -9,6 +10,7 @@ export default function Signup() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [checkInbox, setCheckInbox] = useState(false)
   const navigate = useNavigate()
 
   const submit = async (e) => {
@@ -29,6 +31,15 @@ export default function Signup() {
         if (Array.isArray(detail)) detail = 'Please enter a valid email and a password of 8+ characters.'
         throw new Error(detail)
       }
+      // The server decides whether the account is usable immediately or has to
+      // be confirmed by email first; signing in blindly would fail with a
+      // confusing "Email not confirmed" in the second case.
+      const { verification_required: needsVerify } = await res.json().catch(() => ({}))
+      if (needsVerify) {
+        setCheckInbox(true)
+        setBusy(false)
+        return
+      }
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
       if (signInErr) throw signInErr
       navigate('/')
@@ -38,10 +49,31 @@ export default function Signup() {
     setBusy(false)
   }
 
+  if (checkInbox) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="w-full max-w-sm card p-8 space-y-4">
+          <h1 className="text-xl font-extrabold text-cocoa">Confirm your email</h1>
+          <p className="text-sm text-cocoa/70">
+            We've sent a confirmation link to <strong>{email}</strong>. Click it and
+            you'll be able to sign in.
+          </p>
+          <p className="text-sm text-cocoa/60">
+            <Link to="/login" className="text-cocoa underline">Back to sign in</Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <form onSubmit={submit} className="w-full max-w-sm card p-8 space-y-4">
         <h1 className="text-xl font-extrabold text-cocoa">Create your workspace</h1>
+        {/* Google sign-up skips the org field here; App asks for the
+            workspace name once the account exists. */}
+        <GoogleButton label="Sign up with Google" />
+        <OrDivider />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <input
           required placeholder="Organization name" value={orgName}

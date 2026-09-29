@@ -29,7 +29,7 @@ load_dotenv(os.path.join(HERE, "..", "backend", ".env"))
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SECRET_KEY = os.environ["SUPABASE_SECRET_KEY"]
-API = "http://localhost:8000"
+API = os.environ.get("API", "http://127.0.0.1:8000")
 # Candidate invitee: a different inbox than the calendar owner, so the
 # Google invite email actually arrives somewhere visible.
 CANDIDATE_INBOX = os.environ.get("CANDIDATE_INBOX", "jambadmayank@gmail.com")

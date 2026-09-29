@@ -28,21 +28,37 @@ _hits: dict[tuple[str, str], tuple[float, int]] = defaultdict(lambda: (0.0, 0))
 _last_sweep = 0.0
 
 
-def client_ip(request: Request) -> str:
-    """The caller's address as seen past the platform proxy.
+_LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 
-    Render and Netlify both terminate TLS and forward, so request.client.host
-    is the proxy, not the caller — every request would share one bucket. The
-    left-most X-Forwarded-For entry is the original client. It is spoofable by
-    the caller, which is precisely why this is a cost ceiling and not an
-    authorisation check.
+
+def client_ip(request: Request) -> str:
+    """The caller's address as seen past whichever proxy delivered the request.
+
+    Only a header written by a proxy WE run is believed; anything the caller
+    could have typed themselves is not, or one script rotating a fake header
+    would get a fresh bucket per request and walk straight past every limit
+    (signup included).
+
+      * Self-hosted: cloudflared connects from this machine, and Cloudflare's
+        edge overwrites CF-Connecting-IP with the real client. Trusted only
+        when the socket peer is loopback, i.e. the request came through the
+        tunnel rather than from someone setting the header directly.
+      * Render: its proxy APPENDS the connecting address to X-Forwarded-For,
+        so the right-most entry is the one it vouches for. The left-most entry
+        is whatever the caller sent — the old code trusted exactly that one.
+      * Otherwise: the socket peer.
     """
+    peer = request.client.host if request.client else "unknown"
+    if peer in _LOOPBACK:
+        cf = request.headers.get("cf-connecting-ip", "").strip()
+        if cf:
+            return cf
     fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        first = fwd.split(",")[0].strip()
-        if first:
-            return first
-    return request.client.host if request.client else "unknown"
+    if fwd and peer not in _LOOPBACK:
+        last = fwd.split(",")[-1].strip()
+        if last:
+            return last
+    return peer
 
 
 def _sweep(now: float) -> None:

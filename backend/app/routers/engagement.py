@@ -303,8 +303,8 @@ def list_messages(
 
 
 class MessageEdit(BaseModel):
-    subject: str | None = None
-    body: str | None = None
+    subject: str | None = Field(default=None, max_length=500)
+    body: str | None = Field(default=None, max_length=50000)
 
 
 def _get_message_or_404(message_id: str, org_id: str) -> dict:

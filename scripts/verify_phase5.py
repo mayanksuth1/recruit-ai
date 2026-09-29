@@ -29,7 +29,7 @@ load_dotenv(os.path.join(HERE, "..", "backend", ".env"))
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SECRET_KEY = os.environ["SUPABASE_SECRET_KEY"]
-API = "http://localhost:8000"
+API = os.environ.get("API", "http://127.0.0.1:8000")
 MOCK_PORT = 9999
 SHARED_SECRET = "verify5-shared-secret"
 admin = {"apikey": SECRET_KEY, "Authorization": f"Bearer {SECRET_KEY}"}
@@ -76,38 +76,44 @@ def main():
     org_id = httpx.get(f"{API}/api/organizations/me", headers=H, timeout=20).json()["id"]
 
     print("ATS connection config:")
+    # SSRF guard: a customer-typed webhook URL must not reach our own network.
+    for bad in ("http://127.0.0.1:54421/pg/query", "http://localhost:8000/api/health",
+                "http://169.254.169.254/latest/meta-data/", "http://10.0.0.5/", "file:///etc/passwd"):
+        r = httpx.put(f"{API}/api/ats/connection", headers=H,
+                      json={"outbound_url": bad, "secret": SHARED_SECRET, "active": True}, timeout=20)
+        check(f"internal webhook target refused: {bad}", r.status_code == 400, f"{r.status_code}")
     conn = httpx.put(f"{API}/api/ats/connection", headers=H, json={
-        "outbound_url": f"http://127.0.0.1:{MOCK_PORT}/hooks/recruit-ai",
-        "secret": SHARED_SECRET, "active": True,
+        "outbound_url": None, "secret": SHARED_SECRET, "active": True,
     }, timeout=20).json()
     check("connection saved with inbound path", "/api/webhooks/ats/" in conn["inbound_webhook_path"])
     inbound_url = f"{API}{conn['inbound_webhook_path']}"
+    # Plant a loopback target straight into the DB (as if DNS changed after it
+    # was saved) to prove the send-time re-check refuses it too.
+    httpx.patch(f"{SUPABASE_URL}/rest/v1/ats_connections?organization_id=eq.{org_id}", headers=admin,
+                json={"outbound_url": f"http://127.0.0.1:{MOCK_PORT}/hooks/recruit-ai"},
+                timeout=20).raise_for_status()
 
     cand = httpx.post(f"{SUPABASE_URL}/rest/v1/candidates", headers={**admin, "Prefer": "return=representation"},
                       json={"organization_id": org_id, "full_name": "Sync Test Candidate",
                             "email": "sync.test@example.com", "source": "manual",
                             "shortlist_status": "approved"}, timeout=20).json()[0]
 
-    print("\nOutbound webhook (stage change -> mock ATS):")
+    print("\nOutbound webhook (send-time SSRF re-check):")
     r = httpx.patch(f"{API}/api/candidates/{cand['id']}/stage", headers=H,
                     json={"stage": "interview"}, timeout=180)
     check("stage change accepted", r.status_code == 200, f"{r.status_code} {r.text[:200]}")
-    deadline = time.time() + 10
-    while not received and time.time() < deadline:
-        time.sleep(0.3)
-    check("webhook delivered to mock ATS", len(received) >= 1)
-    if received:
-        hook = received[-1]
-        payload = json.loads(hook["body"])
-        check("payload is the stage change",
-              payload["event"] == "candidate.stage_changed" and payload["data"]["to_stage"] == "interview",
-              str(payload)[:200])
-        expected_sig = "sha256=" + hmac_mod.new(SHARED_SECRET.encode(), hook["body"], hashlib.sha256).hexdigest()
-        check("HMAC signature valid", hook["signature"] == expected_sig,
-              f"{hook['signature']} != {expected_sig}")
+    time.sleep(2)
+    check("nothing delivered to the loopback target", len(received) == 0)
     events = httpx.get(f"{API}/api/ats/events", headers=H, timeout=20).json()
-    check("outbound event logged as delivered",
-          any(e["direction"] == "outbound" and e["result"] == "delivered" for e in events))
+    check("outbound event logged as failed (refused)",
+          any(e["direction"] == "outbound" and e["result"] == "failed" for e in events), str(events)[:300])
+    # Delivery can only reach a public host now, so signing is checked directly.
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
+    from app.services import ats as ats_svc
+    body = b'{"event":"x"}'
+    check("HMAC signature format",
+          ats_svc.sign(SHARED_SECRET, body)
+          == "sha256=" + hmac_mod.new(SHARED_SECRET.encode(), body, hashlib.sha256).hexdigest())
 
     print("\nApproval gate 2 (API):")
     r = httpx.patch(f"{API}/api/candidates/{cand['id']}/stage", headers=H, json={"stage": "offer"}, timeout=60)

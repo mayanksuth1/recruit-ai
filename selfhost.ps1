@@ -1,4 +1,4 @@
-<#
+﻿<#
   Recruit AI — self-hosted launcher.
 
   Brings the whole product up on this machine and, optionally, puts it on the
@@ -93,8 +93,11 @@ if ($busy) {
 $python = Join-Path $root 'backend\.venv\Scripts\python.exe'
 if (-not (Test-Path $python)) { Fail "No virtualenv at $python. Run setup.bat first." }
 
+# Loopback only. cloudflared connects from this machine, so nothing else needs
+# to reach the port; 0.0.0.0 exposed the app (and the rate limiter's trust in
+# loopback peers) to every device on the local network.
 Start-Process -FilePath $python `
-    -ArgumentList '-m','uvicorn','app.main:app','--host','0.0.0.0','--port',$Port `
+    -ArgumentList '-m','uvicorn','app.main:app','--host','127.0.0.1','--port',$Port,'--no-server-header' `
     -WorkingDirectory (Join-Path $root 'backend') `
     -WindowStyle Minimized
 

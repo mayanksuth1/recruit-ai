@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import GoogleButton, { OrDivider } from '../components/GoogleButton'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -27,6 +28,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-6">
       <form onSubmit={submit} className="w-full max-w-sm card p-8 space-y-4">
         <h1 className="text-xl font-extrabold text-cocoa">Sign in</h1>
+        <GoogleButton />
+        <OrDivider />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <input
           type="email" required placeholder="Email" value={email}
@@ -41,6 +44,9 @@ export default function Login() {
         <button disabled={busy} className="w-full rounded-full bg-cocoa text-cream shadow-md hover:scale-[1.03] active:scale-95 transition-transform py-2 text-sm font-medium disabled:opacity-50">
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
+        <p className="text-sm text-cocoa/60">
+          <Link to="/forgot-password" className="text-cocoa underline">Forgot your password?</Link>
+        </p>
         <p className="text-sm text-cocoa/60">
           No account? <Link to="/signup" className="text-cocoa underline">Sign up</Link>
         </p>

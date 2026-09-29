@@ -17,7 +17,7 @@ load_dotenv(os.path.join(HERE, "..", "backend", ".env"))
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SECRET_KEY = os.environ["SUPABASE_SECRET_KEY"]
-API = "http://localhost:8000"
+API = os.environ.get("API", "http://127.0.0.1:8000")
 admin = {"apikey": SECRET_KEY, "Authorization": f"Bearer {SECRET_KEY}"}
 
 JD = (

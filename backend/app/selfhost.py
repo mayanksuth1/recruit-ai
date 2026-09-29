@@ -17,7 +17,9 @@ address without exposing the stack's port directly.
 Serving everything from one origin also removes CORS from the picture entirely:
 same-origin requests never preflight.
 
-Only plain HTTP is proxied. Supabase Realtime needs WebSockets and is NOT
+Only /supabase/auth/v1/* is forwarded (see _allowed): the gateway behind it
+also serves unauthenticated superuser SQL endpoints that must never be
+public. Only plain HTTP is proxied. Supabase Realtime needs WebSockets and is NOT
 forwarded — the frontend uses onAuthStateChange (a local event) rather than
 Postgres subscriptions, so nothing needs it today. If Realtime is ever used,
 this needs a WebSocket path too.
@@ -54,7 +56,46 @@ def _proxy_client() -> httpx.Client:
     return _proxy_client._c
 
 
+# supabase-js endpoints behind signInWithPassword + session refresh (token),
+# signInWithOAuth (authorize, callback), resetPasswordForEmail (recover), the
+# emailed link (verify), getUser/updateUser (user), signOut (logout), and the
+# client's startup probes (settings, health).
+_AUTH_ENDPOINTS = {
+    "token", "authorize", "callback", "recover", "verify",
+    "user", "logout", "settings", "health",
+}
+
+
+def _allowed(path: str) -> bool:
+    """Allow-list, never a deny-list, for what the public may reach upstream.
+
+    The local API gateway serves far more than auth: /pg is postgres-meta and
+    /mcp is the Supabase MCP server, and on the CLI stack both run arbitrary
+    SQL as the superuser with NO key at all. Forwarding every path made the
+    whole database writable by anyone holding the tunnel URL.
+
+    The browser only ever talks to Supabase Auth (every data call goes
+    through this backend's /api routes), and only to the endpoints the
+    frontend's supabase.auth calls use. Everything else in auth is refused,
+    notably:
+      * /signup — GoTrue's own signup is auto-confirmed and bypasses the
+        backend's rate limit, so anyone could squat an address they do not
+        own. Accounts are created through POST /api/auth/signup instead.
+        (It cannot be switched off in config.toml without also disabling
+        password sign-in.)
+      * /otp, /magiclink, /resend, /invite — unused, and each sends mail.
+      * /admin — would need the service key anyway.
+    """
+    parts = path.split("/")
+    return len(parts) >= 3 and parts[:2] == ["auth", "v1"] and parts[2] in _AUTH_ENDPOINTS
+
+
 async def _supabase_proxy(request: Request, path: str) -> Response:
+    # Normalise before checking so /supabase/auth/v1/../../pg/query and
+    # percent-encoded variants cannot walk out of the allowed prefix.
+    path = path.lstrip("/")
+    if ".." in path or "%" in path or "\\" in path or not _allowed(path):
+        raise HTTPException(status_code=404, detail="Not found")
     body = await request.body()
     headers = {k: v for k, v in request.headers.items() if k.lower() not in _STRIP}
     try:

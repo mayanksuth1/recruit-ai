@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { supabase, supabaseConfigured } from './lib/supabase'
+import { api } from './lib/api'
 import Login from './pages/Login'
+import Onboarding from './pages/Onboarding'
 import Signup from './pages/Signup'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Roles from './pages/Roles'
 import RoleDetail from './pages/RoleDetail'
 import TalentPool from './pages/TalentPool'
@@ -38,11 +42,33 @@ export default function App() {
     return () => sub.subscription.unsubscribe()
   }, [])
 
+  // Does the signed-in user belong to an organization? A Google sign-in
+  // creates the account but not the org, and every data endpoint 403s until
+  // one exists. undefined = still checking.
+  const userId = session?.user?.id
+  const [hasOrg, setHasOrg] = useState(undefined)
+  useEffect(() => {
+    if (!userId) { setHasOrg(undefined); return }
+    let cancelled = false
+    api('/api/organizations/me')
+      .then(() => !cancelled && setHasOrg(true))
+      // Only the specific "no organization" answer means onboarding; any other
+      // failure (backend down, network) is left to the pages to report rather
+      // than trapping an existing user on the workspace form.
+      .catch((err) => !cancelled && setHasOrg(!err.message.includes('no organization')))
+    return () => { cancelled = true }
+  }, [userId])
+
   if (session === undefined) return null
 
   const signOut = async () => {
     await supabase.auth.signOut()
     navigate('/login')
+  }
+
+  if (session && hasOrg === undefined) return null
+  if (session && hasOrg === false) {
+    return <Onboarding email={session.user.email} onDone={() => setHasOrg(true)} onSignOut={signOut} />
   }
 
   return (
@@ -83,6 +109,12 @@ export default function App() {
       <Routes>
         <Route path="/login" element={session ? <Navigate to="/" /> : <Login />} />
         <Route path="/signup" element={session ? <Navigate to="/" /> : <Signup />} />
+        <Route path="/forgot-password" element={session ? <Navigate to="/" /> : <ForgotPassword />} />
+        {/* NOT gated on session. Following the emailed link mints a recovery
+            session, so redirecting logged-in users away would drop people on
+            the dashboard without ever asking for a new password — the reset
+            would appear to work and change nothing. */}
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/" element={session ? <Roles /> : <Navigate to="/login" />} />
         <Route path="/roles/:roleId" element={session ? <RoleDetail /> : <Navigate to="/login" />} />
         <Route path="/talent-pool" element={session ? <TalentPool /> : <Navigate to="/login" />} />
