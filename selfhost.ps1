@@ -117,8 +117,35 @@ Ok "backend healthy on port $Port (serving the frontend and proxying /supabase)"
 Write-Host "`n  Local:  http://localhost:$Port" -ForegroundColor Cyan
 
 # --- 4. Public tunnel -----------------------------------------------------
-if ($Public) {
+$ts = Get-Command tailscale -ErrorAction SilentlyContinue
+if (-not $ts -and (Test-Path "$env:ProgramFiles\Tailscale\tailscale.exe")) {
+    $ts = [pscustomobject]@{ Source = "$env:ProgramFiles\Tailscale\tailscale.exe" }
+}
+
+if ($Public -and $ts) {
+    # Tailscale Funnel: a permanent https://<machine>.<tailnet>.ts.net address,
+    # unlike a cloudflared quick tunnel whose hostname changes on every start.
+    # --bg makes the funnel persistent inside tailscaled, so it also survives
+    # reboots on its own; re-running it here is idempotent.
+    Write-Host "`nPublic URL (Tailscale Funnel)"
+    $state = & $ts.Source status --json 2>$null | ConvertFrom-Json
+    if (-not $state -or $state.BackendState -ne 'Running') {
+        Warn "Tailscale is installed but not signed in. Open Tailscale and log in, then re-run."
+    } else {
+        & $ts.Source funnel --bg $Port 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Warn "Funnel could not start. Run this once in a terminal and follow the link it prints"
+            Info "to enable Funnel for your tailnet:  tailscale funnel --bg $Port"
+        } else {
+            $url = 'https://' + $state.Self.DNSName.TrimEnd('.')
+            [IO.File]::WriteAllText($urlFile, $url)
+            Ok "public URL is live (permanent)"
+            Write-Host "`n  Public: $url" -ForegroundColor Cyan
+        }
+    }
+} elseif ($Public) {
     Write-Host "`nPublic URL"
+    Warn "Tailscale is not installed, falling back to a temporary Cloudflare tunnel."
     # Not just Get-Command: winget writes cloudflared to the MACHINE PATH, and
     # a shell started before that (or a service session) still has the old one.
     # Fall back to the known install locations rather than claiming it is missing.
