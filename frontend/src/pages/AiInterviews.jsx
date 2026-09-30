@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { ManualSection } from '../components/ManualHelp'
-import { EmptyState, PageFrame, PageHeader } from '../components/Page'
+import { EmptyState, Label, PageFrame, PageHeader, fmtDate } from '../components/Page'
 
 export const statusStyles = {
   issued: 'bg-butter/80 text-amber-800',
@@ -13,7 +13,7 @@ export const statusStyles = {
 }
 
 export const statusLabel = {
-  issued: 'link issued',
+  issued: 'link sent',
   in_progress: 'in progress',
   completed: 'awaiting scoring',
   scored: 'scored',
@@ -26,6 +26,7 @@ export default function AiInterviews() {
   const [backlog, setBacklog] = useState(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
+  const navigate = useNavigate()
 
   const load = async () => {
     try {
@@ -72,34 +73,50 @@ export default function AiInterviews() {
       {notice && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">{notice}</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="space-y-3">
-        {sessions.map((s) => {
-          const expired = new Date(s.expires_at) < new Date()
-          const live = s.status === 'issued' || s.status === 'in_progress'
-          return (
-            <Link key={s.id} to={`/ai-interviews/${s.id}`}
-              className="card p-5 flex items-center justify-between gap-4 hover:shadow-[0_18px_50px_-18px_rgba(92,80,73,0.35)] transition-shadow">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-cocoa">{s.candidates?.full_name}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${statusStyles[s.status] || ''}`}>
-                    {statusLabel[s.status] || s.status}
-                  </span>
-                  {expired && live && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-blush/50 text-cocoa/60">expired</span>
-                  )}
-                  {s.roles?.title && <span className="text-sm text-cocoa/45 truncate">· {s.roles.title}</span>}
-                </div>
-                <p className="text-xs text-cocoa/45 mt-1">
-                  Issued {new Date(s.issued_at).toLocaleString()} ·{' '}
-                  {expired ? 'expired' : 'expires'} {new Date(s.expires_at).toLocaleString()}
-                  {s.consumed_at && ` · started ${new Date(s.consumed_at).toLocaleString()}`}
-                </p>
-              </div>
-              <span className="text-cocoa/30 text-lg shrink-0">→</span>
-            </Link>
-          )
-        })}
+      {sessions.length > 0 && (
+        <section className="card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-line px-6 py-[18px]">
+            <Label n={4}>Interviews · {sessions.length}</Label>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[15px] text-ink-2">
+              <thead><tr>
+                {['Candidate', 'Role', 'Status', 'Answered', 'Score', 'Link'].map((h, i) => (
+                  <th key={h} className={`py-3.5 text-left font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-subtle ${i === 0 ? 'pl-6 pr-4' : i === 5 ? 'pl-4 pr-6' : 'px-4'}`}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {sessions.map((s) => {
+                  const expiresAt = new Date(s.expires_at)
+                  const live = s.status === 'issued' || s.status === 'in_progress'
+                  const expired = live && expiresAt < new Date()
+                  const hoursLeft = Math.max(0, Math.round((expiresAt - new Date()) / 3600000))
+                  const dot = expired ? 'bg-ink-subtle' : s.status === 'scored' ? 'bg-positive' : s.status === 'scoring_rejected' ? 'bg-ink-subtle' : 'bg-accent'
+                  const link = expired ? `Expired ${fmtDate(s.expires_at, { year: false })}`
+                    : live ? `Expires in ${hoursLeft}h`
+                    : s.completed_at ? `Used ${fmtDate(s.completed_at, { year: false })}` : '—'
+                  return (
+                    <tr key={s.id} onClick={() => navigate(`/ai-interviews/${s.id}`)}
+                      className="cursor-pointer border-t border-line transition-colors hover:bg-[#161514]">
+                      <td className="py-3.5 pl-6 pr-4 font-semibold text-ink">{s.candidates?.full_name}</td>
+                      <td className="px-4 py-3.5">{s.roles?.title || '—'}</td>
+                      <td className="px-4 py-3.5">
+                        <span className="chip text-ink"><span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+                          {expired ? 'Expired' : (statusLabel[s.status] || s.status).replace(/^./, (c) => c.toUpperCase())}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 font-mono text-sm font-medium">{s.answered ?? 0}/{s.question_target}</td>
+                      <td className="dot-num px-4 py-3.5 text-[22px] text-ink">{s.overall_score ?? '—'}</td>
+                      <td className="py-3.5 pl-4 pr-6 font-mono text-sm text-ink-muted">{link}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+      <div>
         {sessions.length === 0 && (
           <EmptyState className="bg-surface" title="No AI interviews yet"
             actions={<Link to="/" className="btn-ghost h-10 no-underline">Go to Roles</Link>}>

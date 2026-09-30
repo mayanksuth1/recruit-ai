@@ -1,17 +1,44 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { ManualSection } from '../components/ManualHelp'
-import { EmptyState, PageFrame, PageHeader } from '../components/Page'
+import { EmptyState, PageFrame, PageHeader, fmtDate } from '../components/Page'
 
-const kindStyles = {
-  outreach: 'bg-babyblue/70 text-sky-800',
-  status_update: 'bg-lavender/70 text-indigo-800',
-  follow_up: 'bg-butter/80 text-amber-800',
+const KIND_LABEL = {
+  outreach: 'Outreach',
+  status_update: 'Status update',
+  follow_up: 'Follow-up',
+  scheduling_link: 'Scheduling',
+  reminder: 'Reminder',
+  feedback_nudge: 'Feedback nudge',
+}
+
+const hhmm = (iso) => {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function CardHead({ msg, when }) {
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <span className="rounded-md border border-line-strong px-[9px] py-1 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-accent-soft">
+          {KIND_LABEL[msg.kind] || msg.kind.replace('_', ' ')}
+        </span>
+        <span className="font-mono text-[13px] text-ink-muted">{when}</span>
+      </div>
+      <div className="text-sm text-ink-muted">
+        To <span className="font-medium text-ink">{msg.candidates?.full_name || msg.to_email}</span>
+        {msg.roles?.title && <> · {msg.roles.title}</>}
+        <span className="ml-1 font-mono text-[12px] text-ink-subtle">({msg.to_email})</span>
+      </div>
+    </>
+  )
 }
 
 function DraftCard({ msg, onChanged }) {
   const [subject, setSubject] = useState(msg.subject)
   const [body, setBody] = useState(msg.body)
+  const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const dirty = subject !== msg.subject || body !== msg.body
@@ -21,6 +48,7 @@ function DraftCard({ msg, onChanged }) {
     setError('')
     try {
       await api(`/api/messages/${msg.id}`, { method: 'PATCH', body: { subject, body } })
+      setEditing(false)
       onChanged()
     } catch (err) { setError(err.message) }
     setBusy(false)
@@ -48,38 +76,35 @@ function DraftCard({ msg, onChanged }) {
   }
 
   return (
-    <div className="card p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm">
-          <span className={`text-xs px-2 py-0.5 rounded-full ${kindStyles[msg.kind] || ''}`}>{msg.kind.replace('_', ' ')}</span>
-          <span className="font-medium text-cocoa">{msg.candidates?.full_name}</span>
-          <span className="text-cocoa/45">→ {msg.to_email}</span>
-          {msg.roles?.title && <span className="text-cocoa/45">· {msg.roles.title}</span>}
-        </div>
-        <span className="text-xs text-cocoa/45">{new Date(msg.created_at).toLocaleString()}</span>
-      </div>
+    <article className="card flex flex-col gap-3.5 px-[22px] py-5">
+      <CardHead msg={msg} when={`Drafted ${hhmm(msg.created_at)}`} />
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <input value={subject} onChange={(e) => setSubject(e.target.value)}
-        className="w-full rounded-2xl border border-blush px-3 py-2 text-sm font-medium" />
-      <textarea rows={8} value={body} onChange={(e) => setBody(e.target.value)}
-        className="w-full rounded-2xl border border-blush px-3 py-2 text-sm" />
+      {editing ? (
+        <>
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Subject"
+            className="h-[42px] rounded-[10px] border px-3 text-[15px] font-semibold text-ink" />
+          <textarea rows={9} value={body} onChange={(e) => setBody(e.target.value)} aria-label="Body"
+            className="resize-y rounded-[10px] border px-4 py-3.5 text-[15px] leading-relaxed text-ink-2" />
+        </>
+      ) : (
+        <>
+          <div className="text-[17px] font-semibold leading-snug text-ink">{subject}</div>
+          <p className="row-inset m-0 whitespace-pre-line px-4 py-3.5 text-[15px] leading-relaxed text-ink-2">{body}</p>
+        </>
+      )}
       <div className="flex gap-2">
-        <button onClick={send} disabled={busy}
-          className="rounded-full bg-mint text-teal-900 hover:scale-[1.03] active:scale-95 transition-transform px-4 py-1.5 text-sm font-medium disabled:opacity-50">
-          {busy ? 'Working…' : 'Send'}
+        <button onClick={send} disabled={busy} className="btn-primary h-[38px] px-4 text-sm">
+          {busy ? 'Working…' : 'Approve & send'}
         </button>
-        {dirty && (
-          <button onClick={save} disabled={busy}
-            className="rounded-full border-2 border-blush bg-white text-cocoa/80 px-4 py-1.5 text-sm disabled:opacity-50">
-            Save edits
-          </button>
-        )}
+        {editing
+          ? <button onClick={save} disabled={busy || !dirty} className="btn-ghost disabled:opacity-50">Save edits</button>
+          : <button onClick={() => setEditing(true)} disabled={busy} className="btn-ghost">Edit</button>}
         <button onClick={discard} disabled={busy}
-          className="rounded-full border-2 border-rosy/70 bg-white text-rose-500 px-4 py-1.5 text-sm disabled:opacity-50">
+          className="ml-auto h-[38px] rounded-[10px] bg-transparent px-3.5 text-sm font-medium text-ink-2 transition-colors hover:text-accent-soft disabled:opacity-50">
           Discard
         </button>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -91,25 +116,21 @@ function SentCard({ msg, onChanged }) {
       onChanged()
     } catch (err) { setError(err.message) }
   }
+  const sent = msg.status === 'sent'
   return (
-    <div className="card p-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm">
-          <span className={`text-xs px-2 py-0.5 rounded-full ${kindStyles[msg.kind] || ''}`}>{msg.kind.replace('_', ' ')}</span>
-          <span className="font-medium text-cocoa">{msg.candidates?.full_name}</span>
-          <span className="text-cocoa/45">→ {msg.to_email}</span>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-cocoa/45">
+    <article className="card flex flex-col gap-3.5 px-[22px] py-5">
+      <CardHead msg={msg} when={sent ? `Sent ${fmtDate(msg.sent_at, { year: false })} ${hhmm(msg.sent_at)}` : 'Discarded'} />
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="text-[17px] font-semibold leading-snug text-ink">{msg.subject}</div>
+      <p className="row-inset m-0 line-clamp-4 whitespace-pre-line px-4 py-3.5 text-[15px] leading-relaxed text-ink-2">{msg.body}</p>
+      {sent && (
+        <div className="flex items-center gap-2">
           {msg.responded_at
-            ? <span className="text-green-600 font-medium">replied</span>
-            : <button onClick={markResponded} className="underline hover:text-cocoa/80">mark replied</button>}
-          <span>sent {new Date(msg.sent_at).toLocaleString()}</span>
+            ? <span className="chip"><span className="h-1.5 w-1.5 rounded-full bg-positive" />Replied</span>
+            : <button onClick={markResponded} className="btn-ghost">Mark replied</button>}
         </div>
-      </div>
-      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
-      <p className="text-sm font-medium text-cocoa/80 mt-2">{msg.subject}</p>
-      <p className="text-sm text-cocoa/60 mt-1 whitespace-pre-wrap line-clamp-3">{msg.body}</p>
-    </div>
+      )}
+    </article>
   )
 }
 
@@ -120,10 +141,17 @@ export default function Outbox() {
   const [fuBusy, setFuBusy] = useState(false)
   const [fuResult, setFuResult] = useState(null)
   const [fuDays, setFuDays] = useState(4)
+  const [counts, setCounts] = useState({})
 
   const load = async () => {
     try {
-      setMessages(await api(`/api/messages?status=${tab}`))
+      const [draft, sent, discarded] = await Promise.all(
+        ['draft', 'sent', 'discarded'].map((st) => api(`/api/messages?status=${st}`)),
+      )
+      const all = { draft, sent, discarded }
+      setCounts({ draft: draft.length, sent: sent.length, discarded: discarded.length })
+      // Drafts oldest first: the one waiting longest is reviewed first.
+      setMessages(tab === 'draft' ? [...all.draft].reverse() : all[tab])
     } catch (err) { setError(err.message) }
   }
 
@@ -168,12 +196,13 @@ export default function Outbox() {
         {['draft', 'sent', 'discarded'].map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
             className={`h-9 rounded-lg px-4 text-sm ${tab === t ? 'bg-line font-semibold text-ink' : 'font-medium text-ink-2'}`}>
-            {t === 'draft' ? 'Drafts' : t[0].toUpperCase() + t.slice(1)}
+            {t === 'draft' ? 'Drafts' : t[0].toUpperCase() + t.slice(1)}{' '}
+            <span className={`font-mono ${t === 'draft' && counts.draft ? 'text-accent-soft' : 'text-ink-muted'}`}>{counts[t] ?? 0}</span>
           </button>
         ))}
       </div>
 
-      <div className="space-y-4">
+      <div className={messages.length ? 'grid gap-4 lg:grid-cols-2' : ''}>
         {messages.map((m) =>
           m.status === 'draft'
             ? <DraftCard key={m.id} msg={m} onChanged={load} />

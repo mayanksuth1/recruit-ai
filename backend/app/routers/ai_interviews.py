@@ -291,12 +291,25 @@ def issue_interview_link(candidate_id: str, body: IssueBody, user: CurrentUser =
 
 @router.get("/ai-interviews")
 def list_ai_interviews(user: CurrentUser = Depends(require_org)):
-    return (
+    rows = (
         service_client().table("ai_interview_sessions")
-        .select("*, candidates(full_name, email), roles(title)")
+        .select("*, candidates(full_name, email), roles(title), "
+                "ai_interview_turns(answer_text), ai_interview_scores(score, max_score, weight)")
         .eq("organization_id", user.organization_id)
         .order("created_at", desc=True).limit(200).execute().data
     )
+    # The list shows "3/5 answered" and one overall score. Answer text is only
+    # needed to count, so it is dropped here rather than shipped to the list.
+    for r in rows:
+        turns = r.pop("ai_interview_turns", None) or []
+        scores = r.pop("ai_interview_scores", None) or []
+        r["answered"] = sum(1 for t in turns if (t.get("answer_text") or "").strip())
+        weight = sum(float(c.get("weight") or 1) for c in scores)
+        r["overall_score"] = round(100 * sum(
+            float(c.get("weight") or 1) * float(c["score"]) / float(c["max_score"])
+            for c in scores if c.get("max_score")
+        ) / weight) if scores and weight else None
+    return rows
 
 
 @router.get("/ai-interviews/{session_id}")

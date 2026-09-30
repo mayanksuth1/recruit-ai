@@ -48,73 +48,67 @@ export default function Search() {
         </p>
       )}
 
-      <form onSubmit={run} className="card p-5 space-y-3">
-        <textarea
-          rows={2}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) run(e) }}
-          placeholder="e.g. shipped an idempotency layer that survived duplicate webhooks"
-          className="w-full rounded-2xl border border-blush px-4 py-3 text-sm focus:outline-none focus:border-rosy"
-        />
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex gap-2">
-            {KINDS.map((k) => (
-              <button key={k.key} type="button" onClick={() => toggleKind(k.key)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium border-2 transition-colors ${
-                  kinds.includes(k.key)
-                    ? 'bg-lavender border-lavender text-indigo-900'
-                    : 'bg-white border-blush text-cocoa/50'
-                }`}>
-                {k.label}
-              </button>
-            ))}
-          </div>
+      <form role="search" onSubmit={run} className="card flex flex-col gap-3.5 px-6 py-[22px]">
+        <div className="flex flex-col gap-2.5 sm:flex-row">
+          <label className="flex flex-1 flex-col gap-2 text-sm font-medium text-ink-2">
+            Search query
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder="e.g. led a payments migration to an event-driven architecture"
+              className="h-[52px] rounded-[10px] border px-4 text-[17px] text-ink" />
+          </label>
           <button type="submit" disabled={busy || query.trim().length < 2 || kinds.length === 0}
-            className="rounded-full bg-cocoa text-cream shadow-md hover:scale-[1.03] active:scale-95 transition-transform px-5 py-2 text-sm font-semibold disabled:opacity-40 disabled:hover:scale-100">
+            className="btn-primary h-[52px] self-end px-6 text-base">
             {busy ? 'Searching…' : 'Search'}
           </button>
         </div>
+        <fieldset className="m-0 flex flex-wrap items-center gap-2.5 border-0 p-0">
+          <legend className="float-left mr-1.5 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-muted">Scope</legend>
+          {KINDS.map((k) => {
+            const on = kinds.includes(k.key)
+            return (
+              <label key={k.key}
+                className={`inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-full border px-3 text-sm font-medium ${on ? 'border-accent bg-[#2A1414] text-ink' : 'border-line-strong text-ink-2'}`}>
+                <input type="checkbox" checked={on} onChange={() => toggleKind(k.key)} className="m-0" />
+                {k.label}
+              </label>
+            )
+          })}
+        </fieldset>
       </form>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {results && (
-        <div className="space-y-3">
-          <p className="text-xs text-cocoa/45">
-            {results.length} result{results.length === 1 ? '' : 's'}, most similar first.
-          </p>
+        <section className="flex flex-col gap-3">
+          <div className="flex justify-between font-mono text-[13px] font-medium text-ink-muted">
+            <span>{results.length} result{results.length === 1 ? '' : 's'}</span><span>Sorted by relevance</span>
+          </div>
           {results.map((r) => (
-            <div key={r.embedding_id} className="card p-5 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-medium text-cocoa truncate">{r.candidate_name || 'Unnamed'}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                    r.source_kind === 'transcript' ? 'bg-lavender/60 text-indigo-900' : 'bg-mint/60 text-teal-900'
-                  }`}>
-                    {r.source_kind === 'transcript' ? `interview answer ${r.chunk_ordinal + 1}` : 'profile'}
-                  </span>
-                </div>
-                <span className="text-xs text-cocoa/45 shrink-0" title={`cosine distance ${r.distance.toFixed(4)}`}>
-                  {(r.similarity * 100).toFixed(1)}% match
-                </span>
+            <article key={r.embedding_id} className="card grid grid-cols-[88px_minmax(0,1fr)] items-start gap-5 px-[22px] py-[18px] md:grid-cols-[88px_minmax(0,1fr)_auto]">
+              <div className="flex flex-col gap-1" title={`cosine distance ${r.distance.toFixed(4)}`}>
+                <span className="dot-num text-[30px] text-accent">.{Math.round(r.similarity * 100).toString().padStart(2, '0')}</span>
+                <span className="font-mono text-[12px] font-medium tracking-[0.08em] text-ink-muted">MATCH</span>
               </div>
-              {/* The matched chunk itself, not a summary of it — the recruiter
-                  should see the text the ranking was actually computed from. */}
-              <p className="text-sm text-cocoa/70 whitespace-pre-wrap line-clamp-6">{r.snippet}</p>
-              {r.session_id && (
-                <Link to={`/ai-interviews/${r.session_id}`} className="text-xs text-cocoa/50 underline">
-                  Open the full interview →
-                </Link>
-              )}
-            </div>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <div className="text-[17px] font-semibold text-ink">{r.candidate_name || 'Unnamed'}</div>
+                {/* The matched chunk itself, not a summary of it: the text the
+                    ranking was actually computed from. */}
+                <p className="m-0 line-clamp-6 whitespace-pre-wrap text-[15px] leading-relaxed text-ink-2">{r.snippet}</p>
+                {r.session_id && (
+                  <Link to={`/ai-interviews/${r.session_id}`} className="text-sm font-medium no-underline">Open the full interview →</Link>
+                )}
+              </div>
+              <span className="hidden whitespace-nowrap rounded-md border border-line-strong px-[9px] py-1 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-ink-2 md:inline">
+                {r.source_kind === 'transcript' ? 'Interview answer' : 'Profile'}
+              </span>
+            </article>
           ))}
           {results.length === 0 && (
             <EmptyState className="bg-surface" title="Nothing matched">
               If you have just added candidates, run "Embed backlog" on AI Interviews first, then search again.
             </EmptyState>
           )}
-        </div>
+        </section>
       )}
 
       <ManualSection section="search" />

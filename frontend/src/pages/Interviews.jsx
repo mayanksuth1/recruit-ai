@@ -1,17 +1,28 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { ManualSection } from '../components/ManualHelp'
-import { EmptyState, PageFrame, PageHeader } from '../components/Page'
+import { EmptyState, Label, PageFrame, PageHeader } from '../components/Page'
 
-const statusStyles = {
-  proposed: 'bg-butter/80 text-amber-800',
-  scheduled: 'bg-babyblue/70 text-sky-800',
-  completed: 'bg-green-50 text-green-700',
-  cancelled: 'bg-blush/40 text-cocoa/60',
+const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+const hm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+
+/* The reminder chip: what the scheduler has done, or will do, for this one. */
+function reminderState(iv) {
+  if (iv.status === 'cancelled') return ['Cancelled', 'bg-ink-subtle']
+  if (iv.status === 'proposed') return [`${(iv.proposed_slots || []).length} slots proposed`, 'bg-accent']
+  if (iv.nudge_sent_at) return ['Feedback nudge sent', 'bg-accent']
+  if (iv.feedback_logged_at) return ['Feedback logged', 'bg-positive']
+  if (iv.reminder_drafted_at) return ['Reminder draft ready', 'bg-accent']
+  if (iv.scheduled_start) {
+    const at = new Date(new Date(iv.scheduled_start).getTime() - 24 * 3600 * 1000)
+    return [`Drafts ${at.getDate()} ${MON[at.getMonth()][0]}${MON[at.getMonth()].slice(1).toLowerCase()}, ${hm(at)}`, 'bg-accent']
+  }
+  return [iv.status, 'bg-ink-subtle']
 }
 
 function InterviewCard({ iv, onChanged }) {
   const [feedback, setFeedback] = useState(iv.feedback || '')
+  const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -20,6 +31,7 @@ function InterviewCard({ iv, onChanged }) {
     setError('')
     try {
       await api(`/api/interviews/${iv.id}/feedback`, { method: 'PATCH', body: { feedback } })
+      setOpen(false)
       onChanged()
     } catch (err) { setError(err.message) }
     setBusy(false)
@@ -35,41 +47,58 @@ function InterviewCard({ iv, onChanged }) {
     setBusy(false)
   }
 
+  const start = iv.scheduled_start ? new Date(iv.scheduled_start) : null
+  const end = iv.scheduled_end ? new Date(iv.scheduled_end) : null
+  const [chip, dot] = reminderState(iv)
+  const panel = [iv.interviewer_email, ...(iv.attendee_emails || [])].filter(Boolean)
+  const canFeedback = iv.status === 'scheduled' || iv.status === 'completed'
+  const live = iv.status !== 'cancelled' && iv.status !== 'completed'
+
   return (
-    <div className="card p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-cocoa">{iv.candidates?.full_name}</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${statusStyles[iv.status] || ''}`}>{iv.status}</span>
-          {iv.roles?.title && <span className="text-sm text-cocoa/45">· {iv.roles.title}</span>}
+    <div className="row-inset flex flex-col gap-3 px-4 py-3.5">
+      <div className="grid grid-cols-[72px_minmax(0,1fr)] items-center gap-5 md:grid-cols-[72px_minmax(0,1.3fr)_minmax(0,1fr)_150px_220px]">
+        <div className="flex flex-col items-center gap-1 border-r border-line py-2">
+          <span className="dot-num text-[28px] text-ink">{start ? String(start.getDate()).padStart(2, '0') : '—'}</span>
+          <span className="font-mono text-[12px] font-medium tracking-[0.08em] text-ink-muted">{start ? MON[start.getMonth()] : 'TBD'}</span>
         </div>
-        {iv.status !== 'cancelled' && iv.status !== 'completed' && (
-          <button onClick={cancel} disabled={busy}
-            className="text-xs text-red-500 underline disabled:opacity-50">Cancel</button>
-        )}
+        <div className="flex min-w-0 flex-col gap-[3px]">
+          <span className="text-base font-semibold text-ink">{iv.candidates?.full_name}</span>
+          <span className="text-sm text-ink-muted">{iv.roles?.title || 'Interview'}</span>
+        </div>
+        <div className="hidden min-w-0 flex-col gap-[3px] md:flex">
+          <span className="truncate text-sm text-ink-2" title={panel.join(', ')}>With {panel.join(', ') || 'you'}</span>
+          <span className="text-sm text-ink-muted">{iv.meet_link ? 'Video · Google Meet' : `${iv.duration_minutes} min`}</span>
+        </div>
+        <span className="hidden font-mono text-[15px] font-medium text-ink md:inline">
+          {start ? `${hm(start)}${end ? `–${hm(end)}` : ''}` : 'Awaiting pick'}
+        </span>
+        <span className="chip col-span-2 justify-self-start md:col-span-1 md:justify-self-end">
+          <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />{chip}
+        </span>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="text-sm text-cocoa/70 space-y-1">
-        {iv.status === 'proposed' && (
-          <p>{(iv.proposed_slots || []).length} slots proposed — waiting for the candidate to pick.</p>
-        )}
-        {iv.scheduled_start && (
-          <p>Scheduled: {new Date(iv.scheduled_start).toLocaleString()} ({iv.duration_minutes} min)</p>
-        )}
-        {iv.meet_link && (
-          <p>Meet: <a href={iv.meet_link} target="_blank" rel="noreferrer" className="text-blue-600 underline">{iv.meet_link}</a></p>
-        )}
-        {iv.reminder_drafted_at && <p className="text-xs text-cocoa/45">Reminder drafted {new Date(iv.reminder_drafted_at).toLocaleString()}</p>}
-        {iv.nudge_sent_at && <p className="text-xs text-cocoa/45">Feedback nudge sent {new Date(iv.nudge_sent_at).toLocaleString()}</p>}
-      </div>
-      {(iv.status === 'scheduled' || iv.status === 'completed') && (
-        <div className="space-y-2">
-          <textarea rows={3} value={feedback} onChange={(e) => setFeedback(e.target.value)}
-            placeholder="Interview feedback…"
-            className="w-full rounded-2xl border border-blush px-3 py-2 text-sm" />
-          <button onClick={saveFeedback} disabled={busy || !feedback.trim()}
-            className="rounded-full bg-cocoa text-cream shadow-md hover:scale-[1.03] active:scale-95 transition-transform px-4 py-1.5 text-sm font-medium disabled:opacity-50">
-            {iv.feedback ? 'Update feedback' : 'Log feedback'}
+      {(canFeedback || live || iv.meet_link) && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
+          {iv.meet_link && <a href={iv.meet_link} target="_blank" rel="noreferrer" className="btn-ghost h-[34px] no-underline">Open Meet</a>}
+          {canFeedback && (
+            <button onClick={() => setOpen((o) => !o)} className="btn-ghost h-[34px]">
+              {iv.feedback ? 'Edit feedback' : 'Log feedback'}
+            </button>
+          )}
+          {live && (
+            <button onClick={cancel} disabled={busy}
+              className="ml-auto h-[34px] rounded-lg px-3 text-sm font-medium text-ink-2 transition-colors hover:text-accent-soft disabled:opacity-50">
+              Cancel interview
+            </button>
+          )}
+        </div>
+      )}
+      {open && (
+        <div className="flex flex-col gap-2">
+          <textarea rows={3} value={feedback} onChange={(e) => setFeedback(e.target.value)} placeholder="Interview feedback…"
+            className="resize-y rounded-[10px] border px-3 py-2.5 text-[15px] text-ink" />
+          <button onClick={saveFeedback} disabled={busy || !feedback.trim()} className="btn-primary h-[38px] self-start text-sm">
+            {iv.feedback ? 'Update feedback' : 'Save feedback'}
           </button>
         </div>
       )}
@@ -121,8 +150,15 @@ export default function Interviews() {
         </p>
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="space-y-4">
-        {interviews.map((iv) => <InterviewCard key={iv.id} iv={iv} onChanged={load} />)}
+      {interviews.length > 0 && (
+        <section className="card flex flex-col gap-3 px-6 py-[22px]">
+          <div className="pb-1.5"><Label n={3} right={`${interviews.filter((i) => i.status === 'scheduled').length} scheduled`}>
+            Interviews · {interviews.length}
+          </Label></div>
+          {interviews.map((iv) => <InterviewCard key={iv.id} iv={iv} onChanged={load} />)}
+        </section>
+      )}
+      <div>
         {interviews.length === 0 && (
           <EmptyState className="min-h-[380px] bg-surface p-12" title="No upcoming interviews"
             actions={<a href="/settings" className="btn-ghost h-10 bg-surface no-underline">Connect Google Calendar</a>}>
