@@ -55,7 +55,7 @@ def _clean(value: str | None, fallback: str = "(not provided)") -> str:
     return text or fallback
 
 
-def generate_linkedin_post(profile: dict, role_title: str, jd: str) -> tuple[str, str]:
+def generate_linkedin_post(profile: dict, role_title: str, jd: str, *, org_id: str | None) -> tuple[str, str]:
     """Returns (post_text, model_that_answered).
 
     `post_text` is the finished, copy-ready draft: the body with the hashtag
@@ -75,7 +75,7 @@ def generate_linkedin_post(profile: dict, role_title: str, jd: str) -> tuple[str
     # it goes anywhere, and is the most public thing this app produces — worth
     # the slower call in a way that per-candidate scoring is not.
     data, model = _generate_json(
-        prompt, LINKEDIN_POST_SCHEMA, model=settings.nvidia_quality_model
+        prompt, LINKEDIN_POST_SCHEMA, org_id=org_id, quality=True
     )
 
     post = (data.get("post") or "").strip()

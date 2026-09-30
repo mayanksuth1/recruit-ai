@@ -71,6 +71,7 @@ def create_outreach_draft(candidate_id: str, user: CurrentUser = Depends(require
         profile=cand.get("resume_text") or "",
         sender_name=_sender_name(user),
         org_name=org_name,
+        org_id=user.organization_id,
     )
     row = (
         service_client()
@@ -167,6 +168,7 @@ def update_stage(candidate_id: str, body: StageUpdate, background: BackgroundTas
             candidate_name=cand["full_name"],
             sender_name=_sender_name(user),
             org_name=org_name,
+            org_id=user.organization_id,
         )
         draft_row = (
             db.table("messages")
@@ -257,6 +259,7 @@ def generate_follow_ups(body: FollowUpRequest, user: CurrentUser = Depends(requi
             days_ago=days_ago,
             sender_name=_sender_name(user),
             org_name=org_name,
+            org_id=user.organization_id,
         )
         row = (
             db.table("messages")

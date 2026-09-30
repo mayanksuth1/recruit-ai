@@ -120,7 +120,7 @@ THEIR ANSWER, VERBATIM:
 """
 
 
-def first_question(role_title: str, jd: str) -> tuple[str, str]:
+def first_question(role_title: str, jd: str, *, org_id: str | None) -> tuple[str, str]:
     """Returns (question_text, model)."""
     data, model = _generate_json(
         FIRST_QUESTION_PROMPT.format(
@@ -129,6 +129,8 @@ def first_question(role_title: str, jd: str) -> tuple[str, str]:
             jd=(jd or "No job description was provided.")[:20000],
         ),
         QUESTION_SCHEMA,
+        org_id=org_id,
+        candidate_facing=True,
     )
     return data["question"].strip(), model
 
@@ -141,6 +143,8 @@ def next_question(
     prev_question: str,
     prev_answer: str,
     asked: list[str],
+    *,
+    org_id: str | None,
 ) -> tuple[str, str]:
     """Returns (question_text, model). `prev_answer` is passed through
     untouched — truncating it here would be truncating the thing the whole
@@ -157,6 +161,8 @@ def next_question(
             prev_answer=prev_answer[:20000],
         ),
         QUESTION_SCHEMA,
+        org_id=org_id,
+        candidate_facing=True,
     )
     return data["question"].strip(), model
 
@@ -244,7 +250,8 @@ TRANSCRIPT:
 """
 
 
-def score_transcript(role_title: str, jd: str, rubric: list[dict], turns: list[dict]) -> tuple[list[dict], str]:
+def score_transcript(role_title: str, jd: str, rubric: list[dict], turns: list[dict],
+                     *, org_id: str | None) -> tuple[list[dict], str]:
     """Score a completed interview. Returns (criteria, model).
 
     `turns` are the stored rows, in order; questions are shown for context but
@@ -269,7 +276,7 @@ def score_transcript(role_title: str, jd: str, rubric: list[dict], turns: list[d
         # Quality model: this decides how a candidate is judged, runs once per
         # completed interview, and nobody is sitting watching it — the opposite
         # trade-off from question generation, which the candidate waits on.
-        model=settings.nvidia_quality_model,
+        org_id=org_id, quality=True,
     )
     criteria = data.get("criteria", [])
 
@@ -314,7 +321,7 @@ def score_transcript(role_title: str, jd: str, rubric: list[dict], turns: list[d
                     failures=listing, rubric=rubric_text, answers=answers_text[:60000]
                 ),
                 SCORING_SCHEMA,
-                model=settings.nvidia_quality_model,
+                org_id=org_id, quality=True,
             )
             repaired = {
                 f.get("criterion_key"): f

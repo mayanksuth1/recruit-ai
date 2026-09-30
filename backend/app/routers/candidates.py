@@ -56,7 +56,7 @@ async def upload_resume(
         raise HTTPException(status_code=413, detail="PDF larger than 10 MB")
     resume_text = extract_text(pdf_bytes)
 
-    result = score_resume(role["description"], resume_text)
+    result = score_resume(role["description"], resume_text, org_id=user.organization_id)
 
     db = service_client()
     full_name = result.get("full_name") or (file.filename or "Unknown")
@@ -170,7 +170,7 @@ def match_pool(
     profiles = [
         f"Name: {e['full_name']}\n{e.get('profile_text') or ''}" for e in entries
     ]
-    results = score_pool_batch(role["description"], profiles)
+    results = score_pool_batch(role["description"], profiles, org_id=user.organization_id)
 
     created = []
     for entry, result in zip(entries, results):

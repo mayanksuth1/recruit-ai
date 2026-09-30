@@ -64,7 +64,7 @@ SENDER: {sender_name} at {org_name}
 
 
 def draft_outreach(role_title: str, jd: str, candidate_name: str, profile: str,
-                   sender_name: str, org_name: str) -> dict:
+                   sender_name: str, org_name: str, *, org_id: str | None) -> dict:
     data, model = _generate_json(
         OUTREACH_PROMPT.format(
             rules=_COMMON_RULES, role_title=role_title, jd=jd[:20000],
@@ -72,19 +72,21 @@ def draft_outreach(role_title: str, jd: str, candidate_name: str, profile: str,
             sender_name=sender_name, org_name=org_name,
         ),
         EMAIL_SCHEMA,
+        org_id=org_id,
     )
     data["model"] = model
     return data
 
 
 def draft_status_update(role_title: str, new_stage: str, candidate_name: str,
-                        sender_name: str, org_name: str) -> dict:
+                        sender_name: str, org_name: str, *, org_id: str | None) -> dict:
     data, model = _generate_json(
         STATUS_UPDATE_PROMPT.format(
             rules=_COMMON_RULES, role_title=role_title, new_stage=new_stage,
             candidate_name=candidate_name, sender_name=sender_name, org_name=org_name,
         ),
         EMAIL_SCHEMA,
+        org_id=org_id,
     )
     data["model"] = model
     return data
@@ -92,7 +94,7 @@ def draft_status_update(role_title: str, new_stage: str, candidate_name: str,
 
 def draft_follow_up(role_title: str, jd: str, candidate_name: str, profile: str,
                     prev_subject: str, prev_body: str, days_ago: int,
-                    sender_name: str, org_name: str) -> dict:
+                    sender_name: str, org_name: str, *, org_id: str | None) -> dict:
     data, model = _generate_json(
         FOLLOW_UP_PROMPT.format(
             rules=_COMMON_RULES, role_title=role_title, jd=jd[:20000],
@@ -101,6 +103,7 @@ def draft_follow_up(role_title: str, jd: str, candidate_name: str, profile: str,
             sender_name=sender_name, org_name=org_name,
         ),
         EMAIL_SCHEMA,
+        org_id=org_id,
     )
     data["model"] = model
     return data

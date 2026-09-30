@@ -87,7 +87,7 @@ def _ensure_question(session: dict, state: dict) -> str:
     turns = _turns(session["id"])
 
     if ordinal == 1:
-        question, model = ai_interview.first_question(role_title, jd)
+        question, model = ai_interview.first_question(role_title, jd, org_id=session["organization_id"])
         source_ordinal = None
     else:
         prev = next((t for t in turns if t["ordinal"] == ordinal - 1), None)
@@ -103,6 +103,7 @@ def _ensure_question(session: dict, state: dict) -> str:
             prev_question=prev["question_text"],
             prev_answer=prev["answer_text"],
             asked=[t["question_text"] for t in turns],
+            org_id=session["organization_id"],
         )
         source_ordinal = ordinal - 1
 
@@ -345,7 +346,7 @@ def score_ai_interview(session_id: str, user: CurrentUser = Depends(require_org)
 
     role_title, jd = _role_context(session)
     turns = _turns(session_id)
-    scored, model = ai_interview.score_transcript(role_title, jd, rubric, turns)
+    scored, model = ai_interview.score_transcript(role_title, jd, rubric, turns, org_id=session["organization_id"])
     by_key = {c.get("criterion_key"): c for c in scored if isinstance(c, dict)}
 
     payload = []

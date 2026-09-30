@@ -77,7 +77,7 @@ def boolean_search(role_id: str, user: CurrentUser = Depends(require_org)):
     role = get_role(role_id, user)
     if not role["description"].strip():
         raise HTTPException(status_code=400, detail="Role has no job description")
-    return generate_boolean_search(role["description"])
+    return generate_boolean_search(role["description"], org_id=user.organization_id)
 
 
 @router.post("/{role_id}/linkedin-post")
@@ -98,7 +98,7 @@ def generate_post(role_id: str, user: CurrentUser = Depends(require_org)):
             detail="Fill in the company profile in Settings first — the post is written from it.",
         )
 
-    post, model = generate_linkedin_post(profile, role["title"], role["description"])
+    post, model = generate_linkedin_post(profile, role["title"], role["description"], org_id=user.organization_id)
     return _save_draft(role_id, user, post, model=model)
 
 

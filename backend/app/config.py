@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # interactive (a recruiter waiting on an email draft or the next interview
     # question) or high-volume (one call per batch of 8 candidates scored).
     #
-    # nvidia_quality_model is opted into per call site by passing model= to
+    # nvidia_quality_model is opted into per call site by passing quality=True to
     # _generate_json. It is reserved for output that is written once, read
     # carefully by a human, and expensive to get wrong — currently the LinkedIn
     # post and the interview transcript scoring. Do not make it the default:
@@ -75,6 +75,16 @@ class Settings(BaseSettings):
     scheduler_timezone: str = "Asia/Kolkata"
     scheduler_interval_seconds: int = 900
     cors_origins: str = "http://localhost:5173"
+    # --- Bring-your-own AI provider (see services/ai_provider.py) ----------
+    # Fernet key that encrypts each organization's provider API key at rest.
+    # Generate with:  python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # Losing or changing it makes every stored key unreadable (owners re-enter
+    # them); leaking it together with a database dump leaks every key.
+    ai_keys_encryption_key: str = ""
+    # Workspaces without their own key run on the platform key (NVIDIA_*
+    # above) for this many model calls per calendar month (UTC), then are
+    # asked to add their own. 0 = no free allowance at all.
+    platform_ai_monthly_limit: int = 100
     # Serve /docs, /redoc and /openapi.json. Leave false anywhere reachable
     # from the internet: they are a complete map of the API for an attacker.
     expose_api_docs: bool = False

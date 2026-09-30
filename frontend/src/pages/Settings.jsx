@@ -72,6 +72,187 @@ function CompanyProfileSection() {
   )
 }
 
+function AiProviderSection() {
+  const [state, setState] = useState(null)
+  const [provider, setProvider] = useState('openai')
+  const [baseUrl, setBaseUrl] = useState('')
+  const [apiKey, setApiKey] = useState('')
+  const [model, setModel] = useState('')
+  const [qualityModel, setQualityModel] = useState('')
+  const [models, setModels] = useState([])
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [busy, setBusy] = useState('')
+
+  const apply = (s) => {
+    setState(s)
+    if (s.config) {
+      setProvider(s.config.provider)
+      setBaseUrl(s.config.base_url || '')
+      setModel(s.config.model)
+      setQualityModel(s.config.quality_model || '')
+    }
+  }
+
+  useEffect(() => {
+    api('/api/ai-provider').then(apply).catch((err) => setError(err.message))
+  }, [])
+
+  const preset = state?.providers.find((p) => p.id === provider)
+  const saved = state?.config
+  // A saved key is reused only for the same endpoint; switching provider needs a new one.
+  const keyRequired = !saved || saved.provider !== provider || (provider === 'custom' && saved.base_url !== baseUrl.trim())
+
+  const run = async (label, fn) => {
+    setBusy(label); setError(''); setNotice('')
+    try { await fn() } catch (err) { setError(err.message) }
+    setBusy('')
+  }
+
+  const loadModels = () => run('models', async () => {
+    const { models } = await api('/api/ai-provider/models', {
+      method: 'POST',
+      body: { provider, base_url: baseUrl.trim() || null, api_key: apiKey.trim() || null },
+    })
+    setModels(models)
+    if (!models.length) setNotice('The provider returned no models — type the model name instead.')
+  })
+
+  const save = (e) => {
+    e.preventDefault()
+    return run('save', async () => {
+      const res = await api('/api/ai-provider', {
+        method: 'PUT',
+        body: {
+          provider, base_url: baseUrl.trim() || null, api_key: apiKey.trim() || null,
+          model: model.trim(), quality_model: qualityModel.trim() || null,
+        },
+      })
+      apply(res)
+      setApiKey('')
+      setNotice(`Connected. Test call answered by ${res.test.model} in ${res.test.seconds}s — every AI feature now uses your key.`)
+    })
+  }
+
+  const remove = () => run('remove', async () => {
+    if (!window.confirm('Disconnect your AI provider? The workspace goes back to the limited free allowance.')) return
+    apply(await api('/api/ai-provider', { method: 'DELETE' }))
+    setModel(''); setQualityModel(''); setModels([]); setBaseUrl('')
+    setNotice('Disconnected. The workspace is back on the free allowance.')
+  })
+
+  if (!state) {
+    return <div className="card p-6 text-sm text-cocoa/60">{error || 'Loading AI provider…'}</div>
+  }
+
+  const { usage } = state
+  const pct = Math.min(100, Math.round((usage.used / Math.max(usage.limit, 1)) * 100))
+  const field = 'mt-1 w-full rounded-2xl border border-blush px-3 py-2 text-sm'
+
+  return (
+    <form onSubmit={save} className="card p-6 space-y-4">
+      <h2 className="font-medium text-cocoa/80">AI provider</h2>
+
+      {usage.using_free_allowance ? (
+        <div className="space-y-1.5">
+          <p className="text-sm text-cocoa/70">
+            You're on the free allowance: <strong>{usage.used} of {usage.limit}</strong> AI
+            calls used this month. Connect your own provider for unlimited use — you pay
+            your provider directly, at their prices.
+          </p>
+          <div className="h-2 rounded-full bg-blush/40 overflow-hidden">
+            <div className={`h-full ${pct >= 100 ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-400' : 'bg-cocoa/70'}`}
+              style={{ width: `${pct}%` }} />
+          </div>
+          {pct >= 100 && (
+            <p className="text-sm text-rose-600">
+              The free allowance is used up. AI features stay off until you connect a key below
+              or the month resets.
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="text-sm text-green-700">
+          Using your own <strong>{saved.label}</strong> key — model <code>{saved.model}</code>
+          {saved.quality_model ? <> (careful tasks: <code>{saved.quality_model}</code>)</> : null}
+          {saved.key_last4 ? <>, key ending …{saved.key_last4}</> : null}.
+        </p>
+      )}
+
+      {!state.can_edit ? (
+        <p className="text-sm text-cocoa/60">Only the workspace owner can change the AI provider.</p>
+      ) : (
+        <>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {notice && <p className="text-sm text-green-700">{notice}</p>}
+
+          <label className="block text-xs text-cocoa/60">
+            Provider
+            <select value={provider} className={field}
+              onChange={(e) => { setProvider(e.target.value); setModels([]); setModel(''); setQualityModel('') }}>
+              {state.providers.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+          </label>
+
+          {provider === 'custom' && (
+            <label className="block text-xs text-cocoa/60">
+              Base URL (OpenAI-compatible, https only)
+              <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} required
+                placeholder="https://api.yourprovider.com/v1" className={field} />
+            </label>
+          )}
+
+          <label className="block text-xs text-cocoa/60">
+            API key {!keyRequired && '(saved — leave blank to keep it)'}
+            {preset?.key_url && (
+              <> · <a href={preset.key_url} target="_blank" rel="noreferrer" className="underline">get a key</a></>
+            )}
+            <input type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+              required={keyRequired} placeholder={keyRequired ? 'Paste your API key' : `••••${saved?.key_last4 || ''}`}
+              className={field} />
+          </label>
+
+          <div className="flex items-end gap-2">
+            <label className="block flex-1 text-xs text-cocoa/60">
+              Model
+              <input list="ai-models" value={model} onChange={(e) => setModel(e.target.value)} required
+                placeholder="Load the list, or type a model name" className={field} />
+            </label>
+            <button type="button" onClick={loadModels} disabled={!!busy || (keyRequired && !apiKey.trim())}
+              className="rounded-full border-2 border-blush bg-white text-cocoa/80 px-3 py-2 text-sm disabled:opacity-50">
+              {busy === 'models' ? 'Loading…' : 'Load models'}
+            </button>
+          </div>
+          <label className="block text-xs text-cocoa/60">
+            Stronger model for LinkedIn posts and interview scoring (optional)
+            <input list="ai-models" value={qualityModel} onChange={(e) => setQualityModel(e.target.value)}
+              placeholder="Same as above if left blank" className={field} />
+          </label>
+          <datalist id="ai-models">{models.map((m) => <option key={m} value={m} />)}</datalist>
+
+          <p className="text-xs text-cocoa/50">
+            Saving sends one tiny test request, so a wrong key or model is caught now rather
+            than in the middle of your work. The key is stored encrypted and is never shown again.
+          </p>
+
+          <div className="flex gap-2">
+            <button disabled={!!busy}
+              className="rounded-full bg-cocoa text-cream shadow-md hover:scale-[1.03] active:scale-95 transition-transform px-4 py-2 text-sm font-medium disabled:opacity-50">
+              {busy === 'save' ? 'Testing…' : saved ? 'Test & update' : 'Test & connect'}
+            </button>
+            {saved && (
+              <button type="button" onClick={remove} disabled={!!busy}
+                className="rounded-full border-2 border-rosy/70 bg-white text-rose-500 px-4 py-2 text-sm disabled:opacity-50">
+                Disconnect
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </form>
+  )
+}
+
 function AtsSection() {
   const [conn, setConn] = useState(null)
   const [url, setUrl] = useState('')
@@ -247,6 +428,8 @@ export default function Settings() {
           </button>
         )}
       </div>
+
+      <AiProviderSection />
 
       <CompanyProfileSection />
 
