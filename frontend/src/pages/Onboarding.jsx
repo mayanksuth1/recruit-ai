@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import AuthLayout from '../components/AuthLayout'
 import { api } from '../lib/api'
 
 /* Shown when someone is signed in but belongs to no organization — in
@@ -30,7 +31,7 @@ export default function Onboarding({ email, onDone, onSignOut }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <AuthLayout>
       <form onSubmit={submit} className="w-full max-w-sm card p-8 space-y-4">
         <h1 className="text-xl font-extrabold text-cocoa">Name your workspace</h1>
         <p className="text-sm text-cocoa/70">
@@ -54,6 +55,6 @@ export default function Onboarding({ email, onDone, onSignOut }) {
           <button type="button" onClick={onSignOut} className="text-cocoa underline">Sign out</button>
         </p>
       </form>
-    </div>
+    </AuthLayout>
   )
 }

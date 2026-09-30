@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, downloadFile } from '../lib/api'
-import ManualHelp, { ManualSection } from '../components/ManualHelp'
+import { ManualSection } from '../components/ManualHelp'
+import { EmptyState, PageFrame, PageHeader } from '../components/Page'
 
 const barColors = ['bg-peach', 'bg-butter', 'bg-mint', 'bg-babyblue', 'bg-lavender', 'bg-rosy']
 
@@ -83,28 +84,21 @@ export default function Reports() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-8 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-cocoa">Reports</h1>
-            <ManualHelp section="reports" />
+    <PageFrame wide>
+      <PageHeader title="Reports" section="reports"
+        subtitle={view === 'recruiter'
+          ? 'Pipeline health for you — full detail including upcoming interviews.'
+          : 'A cleaner summary to share with clients — aggregate numbers only, no candidate details.'}
+        actions={
+          <div role="radiogroup" aria-label="Report view" className="flex gap-1 rounded-[12px] border border-line bg-surface p-1">
+            {['recruiter', 'client'].map((v) => (
+              <button key={v} role="radio" aria-checked={view === v} onClick={() => setView(v)}
+                className={`h-[34px] rounded-lg px-3.5 text-sm ${view === v ? 'bg-line font-semibold text-ink' : 'font-medium text-ink-2'}`}>
+                {v === 'recruiter' ? 'Recruiter view' : 'Client view'}
+              </button>
+            ))}
           </div>
-          <p className="text-sm text-cocoa/60">
-            {view === 'recruiter'
-              ? 'Internal view — full detail including upcoming interviews.'
-              : 'Client view — aggregate numbers only, no candidate PII.'}
-          </p>
-        </div>
-        <div className="flex gap-1 bg-blush/40 rounded-full p-1">
-          {['recruiter', 'client'].map((v) => (
-            <button key={v} onClick={() => setView(v)}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold ${view === v ? 'bg-white text-cocoa shadow-sm' : 'text-cocoa/60'}`}>
-              {v === 'recruiter' ? 'Recruiter view' : 'Client view'}
-            </button>
-          ))}
-        </div>
-      </div>
+        } />
       {error && <p className="text-sm text-red-600">{error}</p>}
       {notice && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-2xl px-3 py-2">{notice}</p>}
 
@@ -173,6 +167,6 @@ export default function Reports() {
       </div>
 
       <ManualSection section="reports" />
-    </div>
+    </PageFrame>
   )
 }

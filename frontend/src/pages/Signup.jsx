@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import AuthLayout from '../components/AuthLayout'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { api, apiUrl } from '../lib/api'
@@ -51,7 +52,7 @@ export default function Signup() {
 
   if (checkInbox) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <AuthLayout>
         <div className="w-full max-w-sm card p-8 space-y-4">
           <h1 className="text-xl font-extrabold text-cocoa">Confirm your email</h1>
           <p className="text-sm text-cocoa/70">
@@ -62,12 +63,12 @@ export default function Signup() {
             <Link to="/login" className="text-cocoa underline">Back to sign in</Link>
           </p>
         </div>
-      </div>
+      </AuthLayout>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <AuthLayout>
       <form onSubmit={submit} className="w-full max-w-sm card p-8 space-y-4">
         <h1 className="text-xl font-extrabold text-cocoa">Create your workspace</h1>
         {/* Google sign-up skips the org field here; App asks for the
@@ -101,6 +102,6 @@ export default function Signup() {
           Have an account? <Link to="/login" className="text-cocoa underline">Sign in</Link>
         </p>
       </form>
-    </div>
+    </AuthLayout>
   )
 }

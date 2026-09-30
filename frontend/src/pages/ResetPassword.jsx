@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import AuthLayout from '../components/AuthLayout'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -57,7 +58,7 @@ export default function ResetPassword() {
 
   if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <AuthLayout>
         <div className="w-full max-w-sm card p-8 space-y-4">
           <h1 className="text-xl font-extrabold text-cocoa">Password changed</h1>
           <p className="text-sm text-cocoa/70">Taking you to sign in…</p>
@@ -65,12 +66,12 @@ export default function ResetPassword() {
             <Link to="/login" className="text-cocoa underline">Go now</Link>
           </p>
         </div>
-      </div>
+      </AuthLayout>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <AuthLayout>
       <form onSubmit={submit} className="w-full max-w-sm card p-8 space-y-4">
         <h1 className="text-xl font-extrabold text-cocoa">Choose a new password</h1>
         {!ready && (
@@ -97,6 +98,6 @@ export default function ResetPassword() {
           <Link to="/forgot-password" className="text-cocoa underline">Request a new link</Link>
         </p>
       </form>
-    </div>
+    </AuthLayout>
   )
 }

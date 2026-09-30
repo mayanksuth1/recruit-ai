@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import ManualHelp, { ManualSection } from '../components/ManualHelp'
+import { ManualSection } from '../components/ManualHelp'
+import { EmptyState, PageFrame, PageHeader } from '../components/Page'
 
 const kindStyles = {
   outreach: 'bg-babyblue/70 text-sky-800',
@@ -141,28 +142,21 @@ export default function Outbox() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-cocoa">Outbox</h1>
-            <ManualHelp section="outbox" />
-          </div>
-          <p className="text-sm text-cocoa/60">
-            Every email is drafted for review — nothing sends without your click.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-cocoa/60">Follow up after</span>
-          <input type="number" min={1} max={60} value={fuDays} onChange={(e) => setFuDays(e.target.value)}
-            className="w-16 rounded-2xl border border-blush px-2 py-1" />
-          <span className="text-cocoa/60">days</span>
-          <button onClick={generateFollowUps} disabled={fuBusy}
-            className="rounded-full border-2 border-blush bg-white text-cocoa/80 px-3 py-1.5 disabled:opacity-50">
+    <PageFrame wide>
+      <PageHeader title="Outbox" section="outbox"
+        subtitle="Every email is drafted for review. Nothing sends until you approve it."
+        actions={<>
+          <label className="flex h-[42px] items-center gap-2.5 rounded-[10px] border border-line-strong bg-surface pl-3.5 pr-1.5 text-sm font-medium text-ink-2">
+            Follow up after
+            <input type="number" min={1} max={60} value={fuDays} onChange={(e) => setFuDays(e.target.value)}
+              aria-label="Days before follow-up"
+              className="h-[30px] w-14 rounded-lg border px-2 text-center text-[15px] font-semibold text-ink" />
+            <span className="pr-2">days</span>
+          </label>
+          <button onClick={generateFollowUps} disabled={fuBusy} className="btn-primary">
             {fuBusy ? 'Checking…' : 'Draft follow-ups'}
           </button>
-        </div>
-      </div>
+        </>} />
       {fuResult !== null && (
         <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
           {fuResult} follow-up draft(s) created.
@@ -170,10 +164,10 @@ export default function Outbox() {
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="flex gap-1 bg-blush/40 rounded-lg p-1 w-fit">
+      <div role="tablist" className="flex w-fit gap-1 rounded-[12px] border border-line bg-surface p-1">
         {['draft', 'sent', 'discarded'].map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium ${tab === t ? 'bg-white text-cocoa shadow-sm' : 'text-cocoa/60'}`}>
+          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+            className={`h-9 rounded-lg px-4 text-sm ${tab === t ? 'bg-line font-semibold text-ink' : 'font-medium text-ink-2'}`}>
             {t === 'draft' ? 'Drafts' : t[0].toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -186,15 +180,17 @@ export default function Outbox() {
             : <SentCard key={m.id} msg={m} onChanged={load} />,
         )}
         {messages.length === 0 && (
-          <p className="text-sm text-cocoa/45">
+          <EmptyState className="min-h-[420px] bg-surface p-12"
+            title={tab === 'draft' ? 'No drafts waiting for review' : tab === 'sent' ? 'Nothing sent yet' : 'Nothing discarded'}
+            actions={tab === 'draft' && <a href="/" className="btn-primary h-10 no-underline">Go to Roles</a>}>
             {tab === 'draft'
-              ? 'No drafts. Approve a candidate on a role page, then click "Draft outreach".'
-              : 'Nothing here yet.'}
-          </p>
+              ? 'Outreach drafts appear here when you contact candidates from a role. Follow-ups are drafted for anyone who hasn\'t replied after the number of days you set above.'
+              : 'Emails move here once they are approved or discarded.'}
+          </EmptyState>
         )}
       </div>
 
       <ManualSection section="outbox" />
-    </div>
+    </PageFrame>
   )
 }

@@ -1,36 +1,239 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------------
+   Recruit AI — Hiring Console. Tokens from the Claude Design file
+   "Recruit AI.dc.html" (00 · Tokens → Tailwind):
+
+     canvas #0F0E0D app bg      sidebar #131211 nav      surface #1A1918 cards
+     inset  #121110 inputs/rows line #2A2826 dividers    line-strong #3A3734 controls
+     ink #F2EEE9  ink-2 #D6D0C9  ink-muted #B3ACA4  ink-subtle #8C857E
+     accent #FF4040  accent-ink #1A0B05  positive #7FD9A0
+     Doto 800 numerals + page titles · IBM Plex Sans body · IBM Plex Mono labels
+     radius sm 6 / md 10 / lg 14
+
+   The pages were first written against pastel token NAMES (cocoa, cream,
+   blush…). Those names are kept and pointed at the new palette so every
+   screen follows the design without a rewrite of each class.
+   ------------------------------------------------------------------------ */
 @theme {
-  --color-cream: #f6efe9;
-  --color-blush: #f2d8cf;
-  --color-peach: #f8c8b0;
-  --color-butter: #f7dfae;
-  --color-lavender: #c7c5ee;
-  --color-mint: #bfe6dd;
-  --color-babyblue: #bcd9ee;
-  --color-rosy: #f3b8c3;
-  --color-cocoa: #5c5049;
-  --font-sans: "Nunito", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-canvas: #0f0e0d;
+  --color-sidebar: #131211;
+  --color-surface: #1a1918;
+  --color-inset: #121110;
+  --color-line: #2a2826;
+  --color-line-strong: #3a3734;
+  --color-ink: #f2eee9;
+  --color-ink-2: #d6d0c9;
+  --color-ink-muted: #b3aca4;
+  --color-ink-subtle: #8c857e;
+  --color-accent: #ff4040;
+  --color-accent-soft: #ff6b6b;
+  --color-accent-ink: #1a0b05;
+  --color-positive: #7fd9a0;
+
+  /* legacy names → design palette */
+  --color-cocoa: #f2eee9;
+  --color-cream: #121110;
+  --color-blush: #3a3734;
+  --color-peach: #ff6b6b;
+  --color-butter: #262019;
+  --color-lavender: #201f26;
+  --color-mint: #17231d;
+  --color-babyblue: #172027;
+  --color-rosy: #2a1414;
+
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", monospace;
+  --font-display: "Doto", "IBM Plex Mono", monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-blink: blink 1.1s steps(2, start) infinite;
 }
 
+html { color-scheme: dark; }
+
 body {
-  color: var(--color-cocoa);
-  background:
-    radial-gradient(60rem 40rem at 110% -10%, rgba(248, 200, 176, 0.45), transparent 60%),
-    radial-gradient(50rem 35rem at -15% 15%, rgba(199, 197, 238, 0.35), transparent 60%),
-    radial-gradient(45rem 30rem at 50% 120%, rgba(191, 230, 221, 0.4), transparent 60%),
-    var(--color-cream);
-  background-attachment: fixed;
+  margin: 0;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* In the base layer so Tailwind text-* utilities on links still win. */
+@layer base {
+  a { color: var(--color-accent-soft); }
+  a:hover { color: #ff9090; }
+  *:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-3xl border border-white
-      shadow-[0_14px_40px_-18px_rgba(92,80,73,0.25)];
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  a.card:hover { border-color: var(--color-line-strong); }
+
+  /* "01  NEEDS YOU" */
+  .panel-label {
+    font: 500 12px/16px var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-muted);
+  }
+  .panel-label b { font-weight: 500; color: var(--color-ink-subtle); margin-right: 0.6em; }
+
+  .dot-num {
+    font-family: var(--font-display);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .row-inset {
+    background: var(--color-inset);
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+  }
+
+  .btn-primary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 42px; padding: 0 18px; border: 0; border-radius: 10px;
+    background: var(--color-accent); color: var(--color-accent-ink);
+    font: 600 15px var(--font-sans); cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  .btn-primary:hover { background: #ff5a5a; color: var(--color-accent-ink); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-ghost {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 38px; padding: 0 14px; border-radius: 10px;
+    border: 1px solid var(--color-line-strong); background: transparent;
+    color: var(--color-ink); font: 500 14px var(--font-sans); cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .btn-ghost:hover { border-color: var(--color-accent); color: var(--color-ink); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 10px; border-radius: 999px; border: 1px solid var(--color-line-strong);
+    font: 500 13px var(--font-sans); color: var(--color-ink-2);
+  }
+
+  .dot-grid {
+    background-image: radial-gradient(var(--color-line) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+
+  /* Dotted bar track + fill (Candidates by stage, Hiring funnel). */
+  .dot-track { border-radius: 3px; background: repeating-linear-gradient(90deg, var(--color-line) 0 5px, transparent 5px 8px); }
+  .dot-fill {
+    height: 100%; border-radius: 3px;
+    background: repeating-linear-gradient(90deg, var(--color-accent) 0 5px, transparent 5px 8px);
+    box-shadow: 0 0 12px rgba(255, 64, 64, 0.25);
+    transform-origin: left; animation: grow 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
 }
 
-::selection {
-  background: var(--color-peach);
-  color: var(--color-cocoa);
+/* ---- Page titles: every screen's h1 inside the console is a Doto title. */
+main h1 {
+  font: 800 42px/1 var(--font-display) !important;
+  letter-spacing: 0.02em !important;
+  text-transform: uppercase;
+  color: var(--color-ink) !important;
+  margin: 0;
 }
+main h2 { color: var(--color-ink); }
+
+/* ---- Legacy utility remaps (unlayered, so they beat Tailwind's layer). */
+.bg-cocoa {
+  background: var(--color-accent) !important;
+  color: var(--color-accent-ink) !important;
+  box-shadow: none !important;
+}
+.bg-cocoa:hover { background: #ff5a5a !important; }
+.bg-cocoa.text-cream, .bg-cocoa .text-cream { color: var(--color-accent-ink) !important; }
+.bg-cocoa\/70 { background-color: rgba(255, 64, 64, 0.75) !important; }
+button.rounded-full, a.rounded-full.bg-cocoa { border-radius: 10px !important; }
+button.hover\:scale-\[1\.03\]:hover { transform: none !important; }
+
+.bg-white, .bg-white\/60, .bg-white\/70 { background-color: var(--color-surface) !important; }
+.border-white { border-color: var(--color-line) !important; }
+.bg-cream, .bg-cream\/70 { background-color: var(--color-inset) !important; }
+.rounded-3xl { border-radius: 14px !important; }
+.rounded-2xl { border-radius: 10px !important; }
+
+input, select, textarea {
+  background-color: var(--color-inset);
+  color: var(--color-ink);
+  border-color: var(--color-line-strong) !important;
+  font-family: var(--font-sans);
+}
+input[type="password"], input[type="number"] { font-family: var(--font-mono); }
+input::placeholder, textarea::placeholder { color: var(--color-ink-subtle); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--color-accent) !important; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--color-accent); }
+select option { background: var(--color-surface); }
+
+.text-red-600, .text-red-700, .text-red-500 { color: var(--color-accent-soft) !important; }
+.text-green-700, .text-green-800, .text-green-600, .text-emerald-700 { color: var(--color-positive) !important; }
+.bg-green-50, .bg-emerald-50 { background-color: rgba(127, 217, 160, 0.08) !important; }
+.border-green-200, .border-emerald-300 { border-color: rgba(127, 217, 160, 0.3) !important; }
+.bg-red-50 { background-color: rgba(255, 64, 64, 0.08) !important; }
+.border-red-200 { border-color: rgba(255, 64, 64, 0.35) !important; }
+.bg-amber-50 { background-color: rgba(251, 191, 36, 0.08) !important; }
+.border-amber-200, .border-amber-300 { border-color: rgba(251, 191, 36, 0.3) !important; }
+.bg-amber-400 { background-color: #fbbf24 !important; }
+.text-amber-700, .text-amber-800, .text-amber-900 { color: #f3cf7a !important; }
+.text-teal-800, .text-teal-900 { color: var(--color-positive) !important; }
+.border-teal-900 { border-color: rgba(127, 217, 160, 0.35) !important; }
+.text-sky-800, .text-sky-900, .text-blue-600 { color: #9cc9e8 !important; }
+.text-indigo-800, .text-indigo-900 { color: #bcb8f0 !important; }
+.text-rose-500, .text-rose-600 { color: var(--color-accent) !important; }
+.text-rose-800, .text-rose-900, .text-rose-900\/90 { color: var(--color-accent-soft) !important; }
+.text-rose-900\/80 { color: rgba(255, 107, 107, 0.8) !important; }
+.text-rose-900\/60 { color: rgba(255, 107, 107, 0.6) !important; }
+.bg-rose-500 { background-color: var(--color-accent) !important; }
+.border-rosy, .border-rosy\/70 { border-color: rgba(255, 64, 64, 0.45) !important; }
+.bg-mint, .bg-babyblue, .bg-lavender, .bg-butter, .bg-rosy { box-shadow: inset 0 0 0 1px var(--color-line-strong); }
+
+code { font-family: var(--font-mono); }
+::selection { background: rgba(255, 64, 64, 0.35); color: #fff; }
+* { scrollbar-width: thin; scrollbar-color: var(--color-line-strong) transparent; }
+
+/* ---- Motion ------------------------------------------------------------ */
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes blink { to { visibility: hidden; } }
+@keyframes ping-soft { 0% { transform: scale(1); opacity: 0.7; } 80%, 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes dot-on { from { opacity: 0.12; } to { opacity: 1; } }
+@keyframes bar-up { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+@keyframes flow { to { stroke-dashoffset: -24; } }
+@keyframes wave { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+
+/* Pages fade up on arrival; their panels follow one after another. */
+main > div > * { animation: var(--animate-rise); }
+main > div > *:nth-child(2) { animation-delay: 60ms; }
+main > div > *:nth-child(3) { animation-delay: 120ms; }
+main > div > *:nth-child(4) { animation-delay: 180ms; }
+main > div > *:nth-child(n + 5) { animation-delay: 240ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+.glow { box-shadow: 0 0 0 1px rgba(255, 64, 64, 0.5), 0 0 18px rgba(255, 64, 64, 0.35); }

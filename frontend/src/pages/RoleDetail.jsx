@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import ManualHelp, { ManualSection } from '../components/ManualHelp'
+import { ManualSection } from '../components/ManualHelp'
+import { PageFrame, PageHeader } from '../components/Page'
 
 const statusStyles = {
   pending: 'bg-butter/70 text-amber-800',
@@ -288,16 +289,11 @@ export default function RoleDetail() {
   const allSelected = ranked.length > 0 && selected.size === ranked.length
 
   return (
-    <div className="max-w-4xl mx-auto p-8 space-y-6">
-      <Link to="/" className="text-sm text-cocoa/60 hover:text-cocoa">&larr; All roles</Link>
+    <PageFrame wide>
+      <Link to="/" className="-mb-3 font-mono text-[13px] font-medium text-ink-muted no-underline hover:text-ink">&larr; All roles</Link>
       {role && (
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-cocoa">{role.title}</h1>
-            <ManualHelp section="roles" />
-          </div>
-          <p className="text-sm text-cocoa/60 mt-1 whitespace-pre-wrap line-clamp-4">{role.description}</p>
-        </div>
+        <PageHeader title={role.title} section="roles"
+          subtitle={<span className="line-clamp-3 whitespace-pre-wrap">{role.description}</span>} />
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {notice && (
@@ -305,7 +301,8 @@ export default function RoleDetail() {
       )}
 
       <div className="grid md:grid-cols-2 gap-4">
-        <label className="block bg-white/70 rounded-3xl border-2 border-dashed border-peach p-6 text-center cursor-pointer hover:border-rosy">
+        <label className="dot-grid flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-dashed border-accent bg-surface p-6 text-center">
+          <span className="dot-num text-[32px] text-accent">PDF</span>
           <span className="text-sm text-cocoa/70">
             {progress || 'Upload resume PDF(s) — scored against the JD'}
           </span>
@@ -524,6 +521,6 @@ export default function RoleDetail() {
       </div>
 
       <ManualSection section="roles" />
-    </div>
+    </PageFrame>
   )
 }

@@ -30,18 +30,12 @@ export default function Manual() {
   }, [])
 
   return (
-    <div className="mx-auto max-w-3xl px-8 pb-20">
-      <header className="pt-10 pb-6">
-        <span className="mb-5 inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-cocoa/70 shadow-[0_1px_2px_rgba(92,80,73,0.08)]">
-          <span className="h-2 w-2 rounded-full border-2 border-teal-900 bg-mint" />
-          Recruit AI · User manual
-        </span>
-        <h1 className="text-3xl font-extrabold tracking-tight text-cocoa">
-          What each screen does
-        </h1>
-        <p className="mt-4 max-w-[56ch] text-[15px] text-cocoa/70">
-          A hiring pipeline that sources, scores, drafts outreach, schedules interviews, and
-          reports — with every email, event, and send held for your click before it goes anywhere.
+    <div className="mx-auto max-w-[1184px] px-5 pb-20 md:px-10">
+      <header className="flex flex-col gap-3 border-b border-line pb-6 pt-9">
+        <h1>Help centre</h1>
+        <p className="m-0 max-w-[70ch] text-base leading-normal text-ink-muted">
+          What each screen does, and the terms it uses. Every "How this works" pill links here.
+          Every email, event and send is held for your click before it goes anywhere.
         </p>
         <div className="mt-6 inline-flex rounded-2xl bg-white px-4 py-3 shadow-[0_1px_3px_rgba(92,80,73,0.08)]">
           <div>
@@ -53,7 +47,7 @@ export default function Manual() {
         </div>
       </header>
 
-      <nav className="sticky top-0 z-10 -mx-8 mb-2 border-b border-cocoa/10 bg-cream/90 px-8 py-3 backdrop-blur-md">
+      <nav className="sticky top-0 z-10 -mx-8 mb-2 border-b border-cocoa/10 bg-canvas/90 px-8 py-3 backdrop-blur-md">
         <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {MANUAL.map((m) => {
             const tone = TONES[m.tone] || TONES.outline

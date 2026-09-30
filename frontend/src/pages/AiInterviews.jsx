@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import ManualHelp, { ManualSection } from '../components/ManualHelp'
+import { ManualSection } from '../components/ManualHelp'
+import { EmptyState, PageFrame, PageHeader } from '../components/Page'
 
 export const statusStyles = {
   issued: 'bg-butter/80 text-amber-800',
@@ -49,23 +50,23 @@ export default function AiInterviews() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-8 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-cocoa">AI interviews</h1>
-            <ManualHelp section="ai-interviews" />
+    <PageFrame wide>
+      <PageHeader title="AI Interviews" section="ai-interviews"
+        subtitle="Async first-round interviews. Answers are scored and made searchable."
+        actions={<>
+          {backlog?.pending > 0 && <span className="font-mono text-[13px] text-ink-muted">{backlog.pending} not embedded</span>}
+          <button onClick={refreshEmbeddings} disabled={busy} className="btn-primary">{busy ? 'Embedding…' : 'Embed backlog'}</button>
+        </>} />
+      <div className="grid gap-4 md:grid-cols-3">
+        {[['01', 'Questions', '5', 'Adaptive questions per interview. Each follows up on the previous answer.'],
+          ['02', 'Links', '1\u00d7', 'Single-use links. A link stops working once the interview is submitted.'],
+          ['03', 'Expiry', '72H', 'Unused links expire after 72 hours. Issue a new one from the candidate\u2019s role page.']].map(([n, l, v, d]) => (
+          <div key={n} className="card flex flex-col gap-3.5 px-[22px] py-5">
+            <div className="panel-label"><b>{n}</b>{l}</div>
+            <div className="dot-num text-[44px] text-ink">{v}</div>
+            <div className="text-sm leading-normal text-ink-muted">{d}</div>
           </div>
-          <p className="text-sm text-cocoa/60">
-            Five questions, each one written from the previous answer. Links are
-            single-use and expire 72 hours after they are issued. Issue one from a
-            candidate on any <Link to="/" className="underline">role page</Link>.
-          </p>
-        </div>
-        <button onClick={refreshEmbeddings} disabled={busy}
-          className="shrink-0 rounded-full border-2 border-blush bg-white text-cocoa/80 px-3 py-1.5 text-sm disabled:opacity-50">
-          {busy ? 'Embedding…' : `Embed backlog${backlog?.pending ? ` (${backlog.pending})` : ''}`}
-        </button>
+        ))}
       </div>
 
       {notice && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">{notice}</p>}
@@ -100,13 +101,15 @@ export default function AiInterviews() {
           )
         })}
         {sessions.length === 0 && (
-          <p className="text-sm text-cocoa/45">
-            No AI interviews yet — open a role, then use "AI interview" on an approved candidate.
-          </p>
+          <EmptyState className="bg-surface" title="No AI interviews yet"
+            actions={<Link to="/" className="btn-ghost h-10 no-underline">Go to Roles</Link>}>
+            Open a role, then use "AI interview" on an approved candidate. Their answers are scored here
+            and become searchable once embedded.
+          </EmptyState>
         )}
       </div>
 
       <ManualSection section="ai-interviews" />
-    </div>
+    </PageFrame>
   )
 }

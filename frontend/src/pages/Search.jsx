@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import ManualHelp, { ManualSection } from '../components/ManualHelp'
+import { ManualSection } from '../components/ManualHelp'
+import { EmptyState, PageFrame, PageHeader } from '../components/Page'
 
 const KINDS = [
   { key: 'profile', label: 'Profiles' },
@@ -36,18 +37,9 @@ export default function Search() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-8 space-y-6">
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-extrabold text-cocoa">Semantic search</h1>
-          <ManualHelp section="search" />
-        </div>
-        <p className="text-sm text-cocoa/60">
-          Searches meaning, not keywords — describe the person you want in your own
-          words. Covers talent-pool profiles and what candidates actually said in
-          their AI interviews.
-        </p>
-      </div>
+    <PageFrame>
+      <PageHeader title="Search" section="search"
+        subtitle="Describe who you're looking for in plain language. Results are ranked by meaning, not keywords." />
 
       {backlog?.pending > 0 && (
         <p className="text-sm text-amber-900 bg-butter/50 border border-butter rounded-md px-3 py-2">
@@ -118,14 +110,14 @@ export default function Search() {
             </div>
           ))}
           {results.length === 0 && (
-            <p className="text-sm text-cocoa/45">
-              Nothing matched. If you have just added candidates, run "Embed backlog" first.
-            </p>
+            <EmptyState className="bg-surface" title="Nothing matched">
+              If you have just added candidates, run "Embed backlog" on AI Interviews first, then search again.
+            </EmptyState>
           )}
         </div>
       )}
 
       <ManualSection section="search" />
-    </div>
+    </PageFrame>
   )
 }

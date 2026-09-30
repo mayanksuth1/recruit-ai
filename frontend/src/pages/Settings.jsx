@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import ManualHelp, { ManualSection } from '../components/ManualHelp'
+import { ManualSection } from '../components/ManualHelp'
+import { Label, PageFrame, PageHeader } from '../components/Page'
 
 const EMPTY_PROFILE = {
   company_name: '', what_we_do: '', culture_benefits: '', location: '', extra_notes: '',
@@ -43,7 +44,7 @@ function CompanyProfileSection() {
 
   return (
     <form onSubmit={save} className="card p-6 space-y-3">
-      <h2 className="font-medium text-cocoa/80">Company profile</h2>
+      <Label n={3}>Company profile</Label>
       <p className="text-sm text-cocoa/60">
         Written once, then used as context whenever you generate a LinkedIn post for a
         role. The more specific this is, the less generic the posts.
@@ -151,7 +152,7 @@ function AiProviderSection() {
 
   return (
     <form onSubmit={save} className="card p-6 space-y-4">
-      <h2 className="font-medium text-cocoa/80">AI provider</h2>
+      <Label n={2} right={<span className="chip"><span className={`h-1.5 w-1.5 rounded-full ${saved ? 'bg-positive' : 'bg-accent'}`} />{saved ? 'Key verified' : 'Free allowance'}</span>}>AI provider</Label>
 
       {usage.using_free_allowance ? (
         <div className="space-y-1.5">
@@ -302,7 +303,7 @@ function AtsSection() {
 
   return (
     <div className="card p-6 space-y-4">
-      <h2 className="font-medium text-cocoa/80">ATS sync (generic webhooks)</h2>
+      <Label n={4}>ATS sync (generic webhooks)</Label>
       <p className="text-sm text-cocoa/60">
         Works with any ATS that speaks webhooks (Greenhouse, Lever, …). Stage
         changes are pushed to your outbound URL; your ATS pushes changes back to
@@ -388,11 +389,9 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-8 space-y-6">
-      <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-extrabold text-cocoa">Settings</h1>
-        <ManualHelp section="settings" />
-      </div>
+    <PageFrame wide>
+      <PageHeader title="Settings" section="settings"
+        subtitle="Connect your calendar and choose the AI model that drafts and scores." />
       {flash === 'connected' && (
         <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
           Google Calendar connected.
@@ -405,11 +404,15 @@ export default function Settings() {
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="card p-6 space-y-3">
-        <h2 className="font-medium text-cocoa/80">Google Calendar</h2>
-        <p className="text-sm text-cocoa/60">
-          Connect your calendar so interview slots can be proposed from your real
-          availability and events land on your calendar automatically.
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+      <div className="card flex flex-col gap-[18px] p-6">
+        <Label n={1} right={
+          <span className="chip"><span className={`h-1.5 w-1.5 rounded-full ${conn?.connected ? 'bg-positive' : 'bg-ink-subtle'}`} />{conn?.connected ? 'Connected' : 'Not connected'}</span>
+        }>Google Calendar</Label>
+        <div className="text-xl font-semibold text-ink">Sync interviews with your calendar</div>
+        <p className="m-0 text-[15px] leading-relaxed text-ink-muted">
+          Interview slots are proposed from your real availability, and booked
+          interviews land on your calendar with a Meet link.
         </p>
         {conn?.connected ? (
           <div className="flex items-center gap-3">
@@ -423,19 +426,21 @@ export default function Settings() {
           </div>
         ) : (
           <button onClick={connect} disabled={busy}
-            className="rounded-full bg-cocoa text-cream shadow-md hover:scale-[1.03] active:scale-95 transition-transform px-4 py-2 text-sm font-medium disabled:opacity-50">
+            className="h-[42px] self-start rounded-[10px] border border-line-strong bg-ink px-4 text-[15px] font-semibold text-[#141312] transition-opacity hover:opacity-90 disabled:opacity-50">
             {busy ? 'Redirecting…' : 'Connect Google Calendar'}
           </button>
         )}
       </div>
 
       <AiProviderSection />
+      </div>
 
-      <CompanyProfileSection />
-
-      <AtsSection />
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <CompanyProfileSection />
+        <AtsSection />
+      </div>
 
       <ManualSection section="settings" />
-    </div>
+    </PageFrame>
   )
 }

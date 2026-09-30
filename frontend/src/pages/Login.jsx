@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import AuthLayout from '../components/AuthLayout'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import GoogleButton, { OrDivider } from '../components/GoogleButton'
@@ -25,7 +26,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
+    <AuthLayout>
       <form onSubmit={submit} className="w-full max-w-sm card p-8 space-y-4">
         <h1 className="text-xl font-extrabold text-cocoa">Sign in</h1>
         <GoogleButton />
@@ -52,6 +53,6 @@ export default function Login() {
         </p>
         <p className="text-xs text-cocoa/50"><Link to="/privacy" className="underline">Privacy notice</Link></p>
       </form>
-    </div>
+    </AuthLayout>
   )
 }

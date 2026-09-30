@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
+import { PageFrame, PageHeader } from '../components/Page'
 
 // Plain-English names for logged actions. Anything unlisted shows its route.
 const ACTION_LABEL = {
@@ -58,8 +59,8 @@ const TABS = ['Overview', 'Workspaces', 'Activity', 'Users', 'Sign-ins', 'Alerts
 function Tile({ title, value, hint }) {
   return (
     <div className="card p-4">
-      <div className="text-xs text-cocoa/60">{title}</div>
-      <div className="text-2xl font-extrabold text-cocoa">{value}</div>
+      <div className="panel-label">{title}</div>
+      <div className="dot-num mt-3 text-[40px] text-ink">{value}</div>
       {hint && <div className="text-xs text-cocoa/50">{hint}</div>}
     </div>
   )
@@ -304,15 +305,13 @@ export default function Admin() {
   const open = (id) => { setWorkspace(id); setTab('Workspaces') }
 
   return (
-    <div className="max-w-6xl mx-auto p-8 space-y-5">
-      <div>
-        <h1 className="text-2xl font-extrabold text-cocoa">Admin</h1>
-        <p className="text-sm text-cocoa/60">Platform activity and usage. Counts and actions only — never candidate data.</p>
-      </div>
-      <div className="flex flex-wrap gap-2">
+    <PageFrame wide>
+      <PageHeader title="Admin" help={false}
+        subtitle="Platform activity and usage. Counts and actions only — never candidate data." />
+      <div role="tablist" className="flex w-fit flex-wrap gap-1 rounded-[12px] border border-line bg-surface p-1">
         {TABS.map((t) => (
-          <button key={t} onClick={() => { setTab(t); setWorkspace(null) }}
-            className={`px-3 py-1.5 rounded-full text-sm font-semibold ${tab === t ? 'bg-cocoa text-cream' : 'text-cocoa/70 hover:bg-blush/50'}`}>
+          <button key={t} role="tab" aria-selected={tab === t} onClick={() => { setTab(t); setWorkspace(null) }}
+            className={`h-9 rounded-lg px-4 text-sm ${tab === t ? 'bg-line font-semibold text-ink' : 'font-medium text-ink-2'}`}>
             {t}
           </button>
         ))}
@@ -323,6 +322,6 @@ export default function Admin() {
       {tab === 'Users' && <Users />}
       {tab === 'Sign-ins' && <Signins />}
       {tab === 'Alerts' && <Alerts open={open} />}
-    </div>
+    </PageFrame>
   )
 }

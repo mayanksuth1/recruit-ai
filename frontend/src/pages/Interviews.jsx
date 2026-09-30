@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import ManualHelp, { ManualSection } from '../components/ManualHelp'
+import { ManualSection } from '../components/ManualHelp'
+import { EmptyState, PageFrame, PageHeader } from '../components/Page'
 
 const statusStyles = {
   proposed: 'bg-butter/80 text-amber-800',
@@ -101,22 +102,18 @@ export default function Interviews() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-cocoa">Interviews</h1>
-            <ManualHelp section="interviews" />
+    <PageFrame wide>
+      <PageHeader title="Interviews" section="interviews"
+        subtitle="Scheduled interviews, with reminders and feedback nudges drafted for you."
+        actions={<button onClick={runChecks} disabled={busy} className="btn-primary">{busy ? 'Running…' : 'Run checks now'}</button>} />
+      <div className="grid gap-4 md:grid-cols-2">
+        {[['24H', 'Reminders draft 24h before', 'A reminder to the candidate is drafted a day before each interview.'],
+          ['48H', 'Feedback nudges 48h after', 'If an interviewer hasn\u2019t left feedback after two days, a nudge is drafted.']].map(([h, t, d]) => (
+          <div key={h} className="card grid grid-cols-[auto_minmax(0,1fr)] items-center gap-[18px] px-[22px] py-5">
+            <div className="dot-num text-[40px] text-accent">{h}</div>
+            <div className="flex flex-col gap-1"><div className="text-base font-semibold text-ink">{t}</div><div className="text-sm leading-normal text-ink-muted">{d}</div></div>
           </div>
-          <p className="text-sm text-cocoa/60">
-            Reminders draft automatically 24h before; interviewers are nudged if
-            feedback is missing 48h after. Checks also run every 15 minutes.
-          </p>
-        </div>
-        <button onClick={runChecks} disabled={busy}
-          className="rounded-full border-2 border-blush bg-white text-cocoa/80 px-3 py-1.5 text-sm disabled:opacity-50">
-          {busy ? 'Running…' : 'Run checks now'}
-        </button>
+        ))}
       </div>
       {checkResult && (
         <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
@@ -127,13 +124,15 @@ export default function Interviews() {
       <div className="space-y-4">
         {interviews.map((iv) => <InterviewCard key={iv.id} iv={iv} onChanged={load} />)}
         {interviews.length === 0 && (
-          <p className="text-sm text-cocoa/45">
-            No interviews yet — use "Schedule interview" on a candidate in a role page.
-          </p>
+          <EmptyState className="min-h-[380px] bg-surface p-12" title="No upcoming interviews"
+            actions={<a href="/settings" className="btn-ghost h-10 bg-surface no-underline">Connect Google Calendar</a>}>
+            Connect Google Calendar, then use "Schedule interview" on a candidate in a role. Reminder and
+            feedback emails are drafted in the Outbox for you to approve.
+          </EmptyState>
         )}
       </div>
 
       <ManualSection section="interviews" />
-    </div>
+    </PageFrame>
   )
 }

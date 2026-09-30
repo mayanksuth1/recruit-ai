@@ -27,15 +27,21 @@ class LinkedInDraftUpdate(BaseModel):
 
 @router.get("")
 def list_roles(user: CurrentUser = Depends(require_org)):
-    return (
+    rows = (
         service_client()
         .table("roles")
-        .select("*")
+        .select("*, candidates(stage)")
         .eq("organization_id", user.organization_id)
         .order("created_at", desc=True)
         .execute()
         .data
     )
+    # The list shows per-role counts; send the numbers, not every candidate.
+    for r in rows:
+        stages = [c.get("stage") for c in (r.pop("candidates", None) or [])]
+        r["candidate_count"] = len(stages)
+        r["interview_count"] = sum(1 for st in stages if st == "interview")
+    return rows
 
 
 @router.post("", status_code=201)
