@@ -27,6 +27,8 @@ this needs a WebSocket path too.
 Deliberately NOT proxied: Studio (54423) and the Postgres port. Those stay
 bound to localhost, reachable only from the machine itself.
 """
+import asyncio
+import json
 import logging
 from pathlib import Path
 
@@ -115,8 +117,24 @@ async def _supabase_proxy(request: Request, path: str) -> Response:
             status_code=502,
             media_type="application/json",
         )
+    if (path == "auth/v1/token" and request.query_params.get("grant_type") == "password"
+            and upstream.status_code in (400, 401)):
+        await asyncio.to_thread(_log_failed_login, body)
     out = {k: v for k, v in upstream.headers.items() if k.lower() not in _STRIP}
     return Response(content=upstream.content, status_code=upstream.status_code, headers=out)
+
+
+def _log_failed_login(body: bytes) -> None:
+    """A wrong password, for the admin Alerts view. Only the address that
+    was tried is kept (to spot one account being attacked), never the
+    password and never the caller's IP."""
+    from .services import activity
+
+    try:
+        email = str(json.loads(body or b"{}").get("email") or "")[:254].lower()
+    except (ValueError, AttributeError):
+        email = ""
+    activity.log("auth.failed_login", meta={"email": email} if email else {})
 
 
 def mount(app: FastAPI) -> None:

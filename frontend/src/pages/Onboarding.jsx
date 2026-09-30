@@ -42,6 +42,10 @@ export default function Onboarding({ email, onDone, onSignOut }) {
           onChange={(e) => setOrgName(e.target.value)}
           className="w-full rounded-2xl border border-blush px-3 py-2 text-sm"
         />
+        <p className="text-xs text-cocoa/55">
+          By continuing you agree to how we handle data, described in our{' '}
+          <a href="/privacy" className="underline">privacy notice</a>.
+        </p>
         <button disabled={busy || !orgName.trim()} className="w-full rounded-full bg-cocoa text-cream shadow-md hover:scale-[1.03] active:scale-95 transition-transform py-2 text-sm font-medium disabled:opacity-50">
           {busy ? 'Creating…' : 'Create workspace'}
         </button>

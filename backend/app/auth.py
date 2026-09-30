@@ -13,7 +13,7 @@ import time
 from dataclasses import dataclass
 
 import httpx
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from .config import settings
@@ -182,12 +182,16 @@ def invalidate_org_cache(user_id: str) -> None:
 
 
 def get_current_user(
+    request: Request,
     creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> CurrentUser:
     if creds is None:
         raise HTTPException(status_code=401, detail="Missing bearer token")
     user_id, email = _verify_token(creds.credentials)
-    return CurrentUser(user_id=user_id, email=email, organization_id=_resolve_org(user_id))
+    user = CurrentUser(user_id=user_id, email=email, organization_id=_resolve_org(user_id))
+    # Read back by the activity-log middleware once the response is ready.
+    request.state.actor = user
+    return user
 
 
 def require_org(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:

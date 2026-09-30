@@ -50,6 +50,7 @@ export default function Login() {
         <p className="text-sm text-cocoa/60">
           No account? <Link to="/signup" className="text-cocoa underline">Sign up</Link>
         </p>
+        <p className="text-xs text-cocoa/50"><Link to="/privacy" className="underline">Privacy notice</Link></p>
       </form>
     </div>
   )

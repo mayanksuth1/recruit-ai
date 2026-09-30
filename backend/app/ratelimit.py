@@ -95,6 +95,12 @@ def hit(bucket: str, key: str, *, limit: int, window_seconds: int) -> None:
         return
 
     if count >= limit:
+        if count == limit:
+            # First refusal in this window: one alert for the admin view,
+            # not one per blocked request. The caller's IP is not stored.
+            from .services import activity
+            activity.log("security.rate_limited", meta={"bucket": bucket})
+            _hits[(bucket, key)] = (started, count + 1)
         retry_after = max(1, int(window_seconds - (now - started)))
         raise HTTPException(
             status_code=429,

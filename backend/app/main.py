@@ -8,10 +8,10 @@ from fastapi.responses import JSONResponse
 
 from .config import settings
 from .routers import (
-    ai_interviews, ai_provider, ats, calendar, candidates, company_profile, dashboard,
+    admin, ai_interviews, ai_provider, ats, calendar, candidates, company_profile, dashboard,
     engagement, interviews, organizations, reports, roles, signup, talent_pool,
 )
-from .services import scheduler
+from .services import activity, scheduler
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -24,6 +24,9 @@ async def _scheduler_loop():
             result = await asyncio.to_thread(scheduler.run_checks)
             if result["reminders_drafted"] or result["nudges_sent"]:
                 logger.info("scheduler: %s", result)
+            purged = await asyncio.to_thread(activity.purge_expired)
+            if purged:
+                logger.info("activity log: purged %d entries past retention", purged)
         except Exception:
             logger.exception("scheduler check failed")
         await asyncio.sleep(settings.scheduler_interval_seconds)
@@ -133,6 +136,13 @@ class BodyLimitMiddleware:
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
+    route = request.scope.get("route")
+    if request.method in ("POST", "PUT", "PATCH", "DELETE") and route is not None:
+        # Template, not the concrete URL: ids stay out of the log.
+        await asyncio.to_thread(
+            activity.log_request, request.method, getattr(route, "path", None),
+            response.status_code, getattr(request.state, "actor", None),
+        )
     h = response.headers
     h.setdefault("X-Content-Type-Options", "nosniff")
     h.setdefault("X-Frame-Options", "DENY")
@@ -174,6 +184,7 @@ app.include_router(calendar.router)
 app.include_router(interviews.router)
 app.include_router(ai_interviews.router)
 app.include_router(ai_provider.router)
+app.include_router(admin.router)
 app.include_router(ats.router)
 app.include_router(reports.router)
 app.include_router(signup.router)

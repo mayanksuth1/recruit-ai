@@ -16,7 +16,9 @@ rewriting what the candidate was asked.
 import hashlib
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException
+from types import SimpleNamespace
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from postgrest.exceptions import APIError
 
@@ -197,8 +199,11 @@ class AnswerBody(BaseModel):
 # unauthenticated route in the app. A real interview is <= 20 turns.
 @router.post("/public/ai-interview/{token}",
              dependencies=[Depends(limiter("ai_interview_answer", limit=40, window_seconds=300))])
-def public_submit_answer(token: str, body: AnswerBody):
+def public_submit_answer(token: str, body: AnswerBody, request: Request):
     session = _session_by_token(token)
+    # No signed-in user on this route; attribute the activity-log entry
+    # to the workspace (the middleware reads request.state.actor).
+    request.state.actor = SimpleNamespace(organization_id=session["organization_id"], user_id=None)
     state = _state(session["id"])
 
     if state["is_expired"]:

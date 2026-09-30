@@ -8,6 +8,8 @@ Auth: the unguessable per-org token in the URL, plus HMAC signature
 Approval gate 2 applies to inbound events too: a remote system cannot move a
 candidate to 'offer' or 'closed' unless a human approved it here first.
 """
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -96,6 +98,10 @@ class InboundEvent(BaseModel):
              dependencies=[Depends(limiter("ats_inbound", limit=300, window_seconds=60))])
 async def inbound_webhook(inbound_token: str, request: Request):
     db = service_client()
+    try:
+        uuid.UUID(inbound_token)  # uuid column: a malformed token must 404, not 500
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Unknown webhook token")
     rows = db.table("ats_connections").select("*").eq("inbound_token", inbound_token).eq("active", True).execute().data
     if not rows:
         raise HTTPException(status_code=404, detail="Unknown webhook token")

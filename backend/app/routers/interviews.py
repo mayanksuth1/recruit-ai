@@ -6,9 +6,12 @@ the candidate opens the public link and picks a slot → the calendar event is
 created on the recruiter's calendar with Meet link, and Google invites the
 attendees the candidate chose to meet.
 """
+import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from types import SimpleNamespace
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
 from ..auth import CurrentUser, require_org
@@ -177,6 +180,12 @@ def run_scheduler_checks(user: CurrentUser = Depends(require_org)):
 # ---------------------------------------------------------------------------
 
 def _interview_by_token(token: str) -> dict:
+    # The column is a uuid: anything else would reach Postgres as a type
+    # error and surface as a 500 rather than "not found".
+    try:
+        uuid.UUID(token)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Scheduling link not found or expired")
     rows = service_client().table("interviews").select("*").eq("public_token", token).execute().data
     if not rows:
         raise HTTPException(status_code=404, detail="Scheduling link not found or expired")
@@ -215,8 +224,11 @@ class SlotChoice(BaseModel):
 
 @router.post("/public/schedule/{token}",
              dependencies=[Depends(limiter("schedule_select", limit=30, window_seconds=300))])
-def public_select_slot(token: str, body: SlotChoice):
+def public_select_slot(token: str, body: SlotChoice, request: Request):
     iv = _interview_by_token(token)
+    # No signed-in user on this route; attribute the activity-log entry
+    # to the workspace (the middleware reads request.state.actor).
+    request.state.actor = SimpleNamespace(organization_id=iv["organization_id"], user_id=None)
     if iv["status"] != "proposed":
         raise HTTPException(status_code=409, detail="This interview is already scheduled or cancelled")
     slot = next((s for s in (iv.get("proposed_slots") or []) if s["start"] == body.start), None)

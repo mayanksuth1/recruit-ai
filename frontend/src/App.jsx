@@ -3,6 +3,8 @@ import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { supabase, supabaseConfigured } from './lib/supabase'
 import { api } from './lib/api'
 import Login from './pages/Login'
+import Admin from './pages/Admin'
+import Privacy from './pages/Privacy'
 import Onboarding from './pages/Onboarding'
 import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgotPassword'
@@ -59,6 +61,16 @@ export default function App() {
     return () => { cancelled = true }
   }, [userId])
 
+  // Platform admin? The server answers 404 to everyone else, so a failed
+  // check simply means "not an admin" and the link never renders.
+  const [isAdmin, setIsAdmin] = useState(false)
+  useEffect(() => {
+    if (!userId) { setIsAdmin(false); return }
+    let cancelled = false
+    api('/api/admin/me').then(() => !cancelled && setIsAdmin(true)).catch(() => !cancelled && setIsAdmin(false))
+    return () => { cancelled = true }
+  }, [userId])
+
   if (session === undefined) return null
 
   const signOut = async () => {
@@ -66,6 +78,7 @@ export default function App() {
     navigate('/login')
   }
 
+  if (window.location.pathname === '/privacy') return <Privacy />
   if (session && hasOrg === undefined) return null
   if (session && hasOrg === false) {
     return <Onboarding email={session.user.email} onDone={() => setHasOrg(true)} onSignOut={signOut} />
@@ -98,6 +111,7 @@ export default function App() {
             </nav>
           </div>
           <div className="flex items-center gap-4 text-sm">
+            {isAdmin && <Link to="/admin" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors text-rose-600">Admin</Link>}
             <Link to="/manual" className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">Manual</Link>
             <span className="text-cocoa/60">{session.user.email}</span>
             <button onClick={signOut} className="px-3 py-1.5 rounded-full font-semibold text-cocoa/70 hover:text-cocoa hover:bg-blush/50 transition-colors">
@@ -127,6 +141,8 @@ export default function App() {
         <Route path="/reports" element={session ? <Reports /> : <Navigate to="/login" />} />
         <Route path="/dashboard" element={session ? <Dashboard /> : <Navigate to="/login" />} />
         <Route path="/manual" element={session ? <Manual /> : <Navigate to="/login" />} />
+        <Route path="/admin" element={session && isAdmin ? <Admin /> : <Navigate to="/" />} />
+        <Route path="/privacy" element={<Privacy />} />
         {/* Public candidate-facing pages — no login required. The token in the
             URL is the entire authentication, so these must never sit behind the
             session check above. */}

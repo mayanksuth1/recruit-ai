@@ -85,9 +85,23 @@ class Settings(BaseSettings):
     # above) for this many model calls per calendar month (UTC), then are
     # asked to add their own. 0 = no free allowance at all.
     platform_ai_monthly_limit: int = 100
+    # --- Platform admin (routers/admin.py) --------------------------------
+    # Comma-separated auth user IDs allowed into /admin. IDs, not emails:
+    # while email verification is off anyone can register any address, but
+    # nobody can choose an existing account's id.
+    platform_admin_user_ids: str = ""
+    # Detailed activity rows older than this are folded into permanent daily
+    # totals and deleted. State this period in the privacy notice.
+    activity_retention_days: int = 365
+    # Shown on the public privacy page. Empty = point people at @tryrecruitai.
+    privacy_contact_email: str = ""
     # Serve /docs, /redoc and /openapi.json. Leave false anywhere reachable
     # from the internet: they are a complete map of the API for an attacker.
     expose_api_docs: bool = False
+
+    @property
+    def admin_ids(self) -> set[str]:
+        return {i.strip() for i in self.platform_admin_user_ids.split(",") if i.strip()}
 
     @property
     def cors_origin_list(self) -> list[str]:

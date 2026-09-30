@@ -93,6 +93,10 @@ export default function Signup() {
         <button disabled={busy} className="w-full rounded-full bg-cocoa text-cream shadow-md hover:scale-[1.03] active:scale-95 transition-transform py-2 text-sm font-medium disabled:opacity-50">
           {busy ? 'Creating…' : 'Sign up'}
         </button>
+        <p className="text-xs text-cocoa/55">
+          By signing up you agree to how we handle data, described in our{' '}
+          <Link to="/privacy" className="underline">privacy notice</Link>.
+        </p>
         <p className="text-sm text-cocoa/60">
           Have an account? <Link to="/login" className="text-cocoa underline">Sign in</Link>
         </p>

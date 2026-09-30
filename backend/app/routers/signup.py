@@ -5,7 +5,9 @@ confirmed, and the organization is bootstrapped in the same call — so the
 user can sign in with their password immediately after signing up.
 """
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from types import SimpleNamespace
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
 from ..config import settings
@@ -27,7 +29,7 @@ class SignupRequest(BaseModel):
 # fill the project with junk tenants.
 @router.post("/signup", status_code=201,
              dependencies=[Depends(limiter("signup", limit=6, window_seconds=3600))])
-def signup(body: SignupRequest):
+def signup(body: SignupRequest, request: Request):
     resp = httpx.post(
         f"{settings.supabase_url}/auth/v1/admin/users",
         headers={
@@ -61,6 +63,9 @@ def signup(body: SignupRequest):
     db.table("organization_members").insert(
         {"organization_id": org["id"], "user_id": user_id, "member_role": "owner"}
     ).execute()
+    # No signed-in user on this route; attribute the activity-log entry
+    # to the workspace (the middleware reads request.state.actor).
+    request.state.actor = SimpleNamespace(organization_id=org["id"], user_id=user_id)
     return {
         "ok": True,
         # The frontend needs to know whether to say "you're in" or "check
