@@ -159,6 +159,51 @@ def dashboard(user: CurrentUser = Depends(require_org)):
             "href": "/",
         })
 
+    # ---- example rows for each group (design 01B) -------------------------
+    # Two named rows per group so the dashboard says WHO is waiting, not just
+    # how many. Names come from this org's own candidates (fetched above).
+    def _ago(iso: str | None) -> str:
+        if not iso:
+            return ""
+        secs = (now - datetime.fromisoformat(iso.replace("Z", "+00:00"))).total_seconds()
+        if secs < 3600:
+            return f"{max(1, int(secs // 60))}m ago"
+        if secs < 86400:
+            return f"{int(secs // 3600)}h ago"
+        return f"{int(secs // 86400)}d ago"
+
+    def _row(cand_id, role_id, detail, cta, href):
+        return {"name": names.get(cand_id) or "Candidate", "role": titles.get(role_id) or "",
+                "detail": detail, "cta": cta, "href": href}
+
+    cand_role = {c["id"]: c.get("role_id") for c in candidates}
+    extras = {
+        "shortlist": ("Pending decisions", "All decisions", [
+            _row(c["id"], c.get("role_id"), "Scored · approve or reject?", "Decide",
+                 f"/roles/{c['role_id']}" if c.get("role_id") else "/") for c in pending[:2]]),
+        "drafts": ("Unreviewed drafts", "Open Outbox", [
+            _row(m.get("candidate_id"), cand_role.get(m.get("candidate_id")),
+                 f"{m['kind'].replace('_', ' ').capitalize()} draft · created {_ago(m.get('created_at'))}", "Review", "/outbox")
+            for m in drafts[:2]]),
+        "feedback": ("Missing interview feedback", "All interviews", [
+            _row(i.get("candidate_id"), i.get("role_id"),
+                 f"Interviewed {_ago(i.get('scheduled_start'))} · no feedback yet", "Add feedback", "/interviews")
+            for i in missing_feedback[:2]]),
+        "expiring": ("AI interview links expiring", "AI interviews", [
+            _row(x.get("candidate_id"), cand_role.get(x.get("candidate_id")), "Link expires within 24 hours", "View", "/ai-interviews")
+            for x in expiring[:2]]),
+        "unscored": ("AI interviews to score", "AI interviews", [
+            _row(x.get("candidate_id"), cand_role.get(x.get("candidate_id")), "Interview complete · not scored", "Score", f"/ai-interviews/{x['id']}")
+            for x in unscored[:2]]),
+        "backlog": ("Not embedded for search", "Embed backlog", []),
+        "no_post": ("Roles without a LinkedIn post", "Open roles", [
+            {"name": r["title"], "role": "", "detail": "Open role · no LinkedIn post drafted", "cta": "Draft post", "href": f"/roles/{r['id']}"}
+            for r in roles_without_post[:2]]),
+    }
+    for item in attention:
+        title, link, rows = extras.get(item["kind"], (item["label"], "Open", []))
+        item.update({"title": title, "link": link, "rows": rows})
+
     # ---- pipeline spread -------------------------------------------------
     by_stage = [
         {"stage": s, "count": sum(1 for c in candidates if c["stage"] == s)}

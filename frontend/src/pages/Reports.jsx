@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { api, downloadFile } from '../lib/api'
-import { ManualSection } from '../components/ManualHelp'
 import { DotBar, Label, PageFrame, PageHeader, fmtDate } from '../components/Page'
 
 export default function Reports() {
@@ -156,7 +155,6 @@ export default function Reports() {
         </>
       )}
 
-      <ManualSection section="reports" />
     </PageFrame>
   )
 }

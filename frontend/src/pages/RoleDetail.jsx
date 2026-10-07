@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import { ManualSection } from '../components/ManualHelp'
 import { PageFrame, PageHeader } from '../components/Page'
 
 const statusStyles = {
@@ -520,7 +519,6 @@ export default function RoleDetail() {
         )}
       </div>
 
-      <ManualSection section="roles" />
     </PageFrame>
   )
 }

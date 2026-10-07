@@ -104,14 +104,26 @@ export default function Dashboard() {
               </div>
             ) : (
               data.attention.map((g) => (
-                <Link key={g.kind} to={g.href}
-                  className="row-inset group flex items-center justify-between gap-3 px-4 py-3.5 no-underline transition-colors hover:border-line-strong">
-                  <span className="flex items-baseline gap-2.5">
-                    <span className="dot-num text-2xl text-accent">{g.count}</span>
-                    <span className="text-base font-semibold text-ink">{g.label}</span>
-                  </span>
-                  <span className="text-sm font-medium text-accent-soft transition-transform group-hover:translate-x-0.5">Open →</span>
-                </Link>
+                <div key={g.kind} className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <div className="flex items-baseline gap-2.5" title={g.label}>
+                      <span className="dot-num text-2xl text-accent">{g.count}</span>
+                      <span className="text-base font-semibold text-ink">{g.title || g.label}</span>
+                    </div>
+                    <Link to={g.href} className="whitespace-nowrap text-sm font-medium no-underline">{g.link || 'Open'} →</Link>
+                  </div>
+                  {(g.rows || []).map((r, i) => (
+                    <div key={i} className="row-inset grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-3.5 py-3">
+                      <div className="flex min-w-0 flex-col gap-[3px]">
+                        <div className="truncate text-[15px] font-medium text-ink">
+                          {r.name}{r.role && <span className="font-normal text-ink-muted"> · {r.role}</span>}
+                        </div>
+                        <div className="text-sm text-ink-muted">{r.detail}</div>
+                      </div>
+                      <button className="btn-ghost h-[34px]" onClick={() => navigate(r.href)}>{r.cta}</button>
+                    </div>
+                  ))}
+                </div>
               ))
             )}
             {data.activity.length > 0 && (

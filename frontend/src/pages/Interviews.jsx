@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import { ManualSection } from '../components/ManualHelp'
 import { EmptyState, Label, PageFrame, PageHeader } from '../components/Page'
 
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
@@ -168,7 +167,6 @@ export default function Interviews() {
         )}
       </div>
 
-      <ManualSection section="interviews" />
     </PageFrame>
   )
 }

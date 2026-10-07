@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import { ManualSection } from '../components/ManualHelp'
 import { Label, PageFrame, PageHeader } from '../components/Page'
 
 const EMPTY_PROFILE = {
@@ -440,7 +439,6 @@ export default function Settings() {
         <AtsSection />
       </div>
 
-      <ManualSection section="settings" />
     </PageFrame>
   )
 }

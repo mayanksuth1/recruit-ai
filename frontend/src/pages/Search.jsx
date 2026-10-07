@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import { ManualSection } from '../components/ManualHelp'
 import { EmptyState, PageFrame, PageHeader } from '../components/Page'
 
 const KINDS = [
@@ -111,7 +110,6 @@ export default function Search() {
         </section>
       )}
 
-      <ManualSection section="search" />
     </PageFrame>
   )
 }

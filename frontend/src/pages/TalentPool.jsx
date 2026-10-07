@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
-import { ManualSection } from '../components/ManualHelp'
 import { Label, PageFrame, PageHeader } from '../components/Page'
 
 export default function TalentPool() {
@@ -171,7 +170,6 @@ export default function TalentPool() {
         Export search results to CSV and import here.
       </p>
 
-      <ManualSection section="talent-pool" />
     </PageFrame>
   )
 }

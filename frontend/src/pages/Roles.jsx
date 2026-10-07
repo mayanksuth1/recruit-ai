@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import { ManualSection } from '../components/ManualHelp'
 import { EmptyState, Label, PageFrame, PageHeader, fmtDate } from '../components/Page'
 
 export default function Roles() {
@@ -126,7 +125,6 @@ export default function Roles() {
         </section>
       </div>
 
-      <ManualSection section="roles" />
     </PageFrame>
   )
 }
