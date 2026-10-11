@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
+from .ratelimit import client_ip, hit
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -92,12 +93,33 @@ def _allowed(path: str) -> bool:
     return len(parts) >= 3 and parts[:2] == ["auth", "v1"] and parts[2] in _AUTH_ENDPOINTS
 
 
+def _auth_proxy_rate_limit(request: Request, path: str) -> None:
+    """Per-IP limits on the sensitive auth endpoints reached through this proxy.
+
+    GoTrue has its own rate limits, but every request arrives from this
+    backend over loopback, so GoTrue sees one shared client and its limits
+    become global rather than per-attacker. These limits use the real caller
+    IP (client_ip reads the trusted tunnel header), so one attacker cannot
+    brute-force a password or spam reset mail, and cannot lock everyone else
+    out either.
+    """
+    if path == "auth/v1/token":
+        grant = request.query_params.get("grant_type")
+        if grant == "password":  # login attempts
+            hit("login", client_ip(request), limit=10, window_seconds=300)
+    elif path == "auth/v1/recover":  # password-reset email requests
+        hit("recover", client_ip(request), limit=5, window_seconds=3600)
+    elif path == "auth/v1/verify":  # email-link confirmations
+        hit("auth_verify", client_ip(request), limit=30, window_seconds=300)
+
+
 async def _supabase_proxy(request: Request, path: str) -> Response:
     # Normalise before checking so /supabase/auth/v1/../../pg/query and
     # percent-encoded variants cannot walk out of the allowed prefix.
     path = path.lstrip("/")
     if ".." in path or "%" in path or "\\" in path or not _allowed(path):
         raise HTTPException(status_code=404, detail="Not found")
+    _auth_proxy_rate_limit(request, path)  # raises 429 when a bucket is exceeded
     body = await request.body()
     headers = {k: v for k, v in request.headers.items() if k.lower() not in _STRIP}
     try:

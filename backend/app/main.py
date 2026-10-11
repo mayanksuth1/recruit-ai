@@ -70,15 +70,20 @@ app = FastAPI(
 MAX_BODY_BYTES = 12 * 1024 * 1024
 
 # Only what the built frontend actually loads: its own bundle, Google Fonts,
-# and XHR to this origin (API and the /supabase auth proxy) or to a Supabase
-# URL baked in at build time. No inline script, no framing.
+# and XHR to this origin (API and the /supabase auth proxy). In self-host mode
+# the browser talks to Supabase only through same-origin /supabase, so a
+# loopback supabase_url is NOT added to connect-src — advertising an internal
+# host and port in a public page's CSP leaks it for nothing. A remote Supabase
+# URL (a real hosted project) is still allowed.
+_sb = settings.supabase_url.rstrip("/")
+_sb_connect = "" if _sb.split("://")[-1].split(":")[0] in ("127.0.0.1", "localhost", "[::1]", "::1") else f" {_sb}"
 _CSP = "; ".join([
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data:",
-    f"connect-src 'self' {settings.supabase_url.rstrip('/')}",
+    f"connect-src 'self'{_sb_connect}",
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",
