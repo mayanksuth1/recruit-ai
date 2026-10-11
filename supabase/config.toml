@@ -186,7 +186,7 @@ jwt_expiry = 3600
 # Pinned to the old default so moving external_url does not change the issuer.
 jwt_issuer = "http://127.0.0.1:54421/auth/v1"
 # Path to JWT signing key. DO NOT commit your signing keys file to git.
-# signing_keys_path = "./signing_keys.json"
+signing_keys_path = "./signing_keys.json"  # ES256; replaces public default HS256 secret (gitignored)
 # If disabled, the refresh token will never expire.
 enable_refresh_token_rotation = true
 # Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.

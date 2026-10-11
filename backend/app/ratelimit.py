@@ -55,12 +55,18 @@ def client_ip(request: Request) -> str:
     """
     peer = request.client.host if request.client else "unknown"
     if peer in _LOOPBACK:
-        if request.headers.get("tailscale-funnel-request"):
+        # Both tunnels connect from loopback, so pick by Host: each tunnel
+        # only delivers requests for its own hostname (Cloudflare routes by
+        # Host, Funnel by SNI), so a caller cannot choose the other tunnel's
+        # rules by sending its headers.
+        host = (request.headers.get("host") or "").split(":")[0].lower()
+        if host.endswith(".trycloudflare.com") or host.endswith(".cfargotunnel.com"):
+            cf = request.headers.get("cf-connecting-ip", "").strip()
+            return cf or peer
+        if host.endswith(".ts.net"):
             last = (request.headers.get("x-forwarded-for") or "").split(",")[-1].strip()
             return last or peer
-        cf = request.headers.get("cf-connecting-ip", "").strip()
-        if cf:
-            return cf
+        return peer
     fwd = request.headers.get("x-forwarded-for")
     if fwd and peer not in _LOOPBACK:
         last = fwd.split(",")[-1].strip()

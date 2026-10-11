@@ -39,14 +39,35 @@ class CurrentUser:
     organization_id: str | None
 
 
+def _b64url_json(segment: str) -> dict:
+    return json.loads(base64.urlsafe_b64decode(segment + "=" * (-len(segment) % 4)))
+
+
 def _jwt_claims(token: str) -> dict:
     """The token's payload, UNVERIFIED. Only call this on a token that
     /auth/v1/user has just accepted; it reads claims, it does not trust them."""
     try:
-        payload = token.split(".")[1]
-        return json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+        return _b64url_json(token.split(".")[1])
     except (IndexError, ValueError):
         return {}
+
+
+# User access tokens are signed with the project's asymmetric ES256 key
+# (supabase/signing_keys.json). The Supabase CLI's default HS256 secret is
+# public, so a symmetric-algorithm token is, by definition, a forgery attempt:
+# refuse it here before it ever reaches GoTrue, whatever GoTrue would decide.
+# `none` (unsigned) is refused for the same reason.
+_ALLOWED_JWT_ALGS = {"ES256", "RS256", "ES384", "RS384", "ES512", "RS512", "EdDSA"}
+
+
+def _rejected_token_alg(token: str) -> str | None:
+    """The token's `alg` if it is NOT an allowed asymmetric algorithm, else None.
+    A malformed header counts as rejected."""
+    try:
+        alg = _b64url_json(token.split(".")[0]).get("alg")
+    except (IndexError, ValueError):
+        return "malformed"
+    return None if alg in _ALLOWED_JWT_ALGS else (alg or "none")
 
 
 def _auth_admin(method: str, path: str, **kwargs) -> httpx.Response:
@@ -130,6 +151,14 @@ def _verify_token(token: str) -> tuple[str, str]:
     cached = _token_cache.get(token)
     if cached and cached[0] > now:
         return cached[1], cached[2]
+
+    # Refuse symmetric / unsigned tokens up front: legitimate access tokens are
+    # ES256, so these can only be forgeries signed with the public default
+    # secret. Done before the GoTrue round trip and before caching.
+    bad_alg = _rejected_token_alg(token)
+    if bad_alg is not None:
+        logger.warning("rejected token with disallowed alg=%s", bad_alg)
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     resp = None
     for attempt in range(2):  # GET is idempotent; retry transient upstream blips

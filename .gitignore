@@ -16,3 +16,6 @@ config.env
 .cloudflared.log
 .cloudflared.log.out
 .run-tunnel.cmd
+
+# Local auth signing key (private) — never commit.
+supabase/signing_keys.json
