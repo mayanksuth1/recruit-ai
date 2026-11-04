@@ -28,8 +28,6 @@ Then open **http://localhost:5173** in your browser.
 > address", an old copy is still holding port 8000 — kill it first:
 > `Get-NetTCPConnection -LocalPort 8000 | % { Stop-Process -Id $_.OwningProcess -Force }`
 
-**Current login:** `mayankdigikit@gmail.com` / `RecruitAI@2026`
-
 ---
 
 ## 1. Sign up & workspace
