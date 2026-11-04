@@ -3,6 +3,8 @@
 #
 #     scripts/install-selfhost.sh                       # http://localhost:8001
 #     scripts/install-selfhost.sh https://name.ts.net   # also a public address
+#     scripts/install-selfhost.sh https://name.ts.net https://app.vercel.app
+#                                                       # frontend hosted elsewhere
 #
 # Re-run after any code change: this is the deploy step.
 #
@@ -14,6 +16,9 @@ export PATH="/usr/local/bin:/opt/homebrew/bin:$HOME/Library/Python/3.9/bin:$HOME
 
 PUBLIC_URL="${1:-http://localhost:8001}"
 PUBLIC_URL="${PUBLIC_URL%/}"
+# Where visitors open the app. Differs from PUBLIC_URL when Vercel serves it.
+FRONTEND_URL="${2:-$PUBLIC_URL}"
+FRONTEND_URL="${FRONTEND_URL%/}"
 LABEL=com.recruitai.server
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$HOME/Library/Application Support/RecruitAI/app"
@@ -38,8 +43,8 @@ chmod 700 "$APP/selfhost.sh"
 
 echo "Writing production settings"
 umask 077
-sed -e "s#^FRONTEND_URL=.*#FRONTEND_URL=$PUBLIC_URL#" \
-    -e "s#^CORS_ORIGINS=.*#CORS_ORIGINS=$PUBLIC_URL#" \
+sed -e "s#^FRONTEND_URL=.*#FRONTEND_URL=$FRONTEND_URL#" \
+    -e "s#^CORS_ORIGINS=.*#CORS_ORIGINS=$FRONTEND_URL,$PUBLIC_URL#" \
     -e "s#^GOOGLE_REDIRECT_URI=.*#GOOGLE_REDIRECT_URI=$PUBLIC_URL/api/calendar/oauth/callback#" \
     "$ROOT/backend/.env" > "$APP/backend/.env"
 umask 022
@@ -72,4 +77,4 @@ EOF
 
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
-echo "Installed. Serving at $PUBLIC_URL (logs: $LOGS/server.log)"
+echo "Installed. Backend $PUBLIC_URL, frontend $FRONTEND_URL (logs: $LOGS/server.log)"

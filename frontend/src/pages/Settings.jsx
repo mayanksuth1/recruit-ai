@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { api } from '../lib/api'
+import { api, apiUrl } from '../lib/api'
 import { Label, PageFrame, PageHeader } from '../components/Page'
 
 const EMPTY_PROFILE = {
@@ -323,7 +323,7 @@ function AtsSection() {
       </label>
       {conn && (
         <p className="text-xs text-cocoa/60">
-          Inbound URL for your ATS: <code className="bg-cream/70 border border-blush/60 rounded px-1.5 py-0.5">{window.location.origin.replace(':5173', ':8000')}{conn.inbound_webhook_path}</code>
+          Inbound URL for your ATS: <code className="bg-cream/70 border border-blush/60 rounded px-1.5 py-0.5">{apiUrl('') || window.location.origin}{conn.inbound_webhook_path}</code>
         </p>
       )}
       <div className="flex gap-2">
