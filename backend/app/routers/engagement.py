@@ -7,6 +7,7 @@ Human approval gate 1 lives here:
   inbox is POST /api/messages/{id}/send — an explicit recruiter click.
   Stage changes and follow-up checks create drafts, never send.
 """
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -16,6 +17,8 @@ from ..auth import CurrentUser, require_org
 from ..db import service_client
 from ..services import ats, drafting
 from ..services.email import get_email_status, send_email
+
+logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(prefix="/api", tags=["engagement"])
 
@@ -162,32 +165,39 @@ def update_stage(candidate_id: str, body: StageUpdate, background: BackgroundTas
     draft_row = None
     if cand.get("email"):
         org_name, role = _org_and_role(user.organization_id, cand.get("role_id"))
-        draft = drafting.draft_status_update(
-            role_title=role.get("title", "a role"),
-            new_stage=body.stage,
-            candidate_name=cand["full_name"],
-            sender_name=_sender_name(user),
-            org_name=org_name,
-            org_id=user.organization_id,
-        )
-        draft_row = (
-            db.table("messages")
-            .insert(
-                {
-                    "organization_id": user.organization_id,
-                    "candidate_id": candidate_id,
-                    "role_id": cand.get("role_id"),
-                    "kind": "status_update",
-                    "to_email": cand["email"],
-                    "subject": draft["subject"],
-                    "body": draft["body"],
-                    "status": "draft",
-                    "created_by": user.user_id,
-                }
+        # The stage is already saved. An AI failure costs the courtesy draft,
+        # never the move itself or the ATS sync below.
+        try:
+            draft = drafting.draft_status_update(
+                role_title=role.get("title", "a role"),
+                new_stage=body.stage,
+                candidate_name=cand["full_name"],
+                sender_name=_sender_name(user),
+                org_name=org_name,
+                org_id=user.organization_id,
             )
-            .execute()
-            .data[0]
-        )
+        except HTTPException as e:
+            logger.warning("Status-update draft skipped for %s: %s", candidate_id, e.detail)
+            draft = None
+        if draft:
+            draft_row = (
+                db.table("messages")
+                .insert(
+                    {
+                        "organization_id": user.organization_id,
+                        "candidate_id": candidate_id,
+                        "role_id": cand.get("role_id"),
+                        "kind": "status_update",
+                        "to_email": cand["email"],
+                        "subject": draft["subject"],
+                        "body": draft["body"],
+                        "status": "draft",
+                        "created_by": user.user_id,
+                    }
+                )
+                .execute()
+                .data[0]
+            )
 
     # Sync the stage change to the org's ATS (fire-and-forget, logged).
     background.add_task(

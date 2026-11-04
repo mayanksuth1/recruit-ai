@@ -134,8 +134,23 @@ def invalidate(org_id: str) -> None:
     _cache.pop(org_id, None)
 
 
+def backup_target() -> Target | None:
+    """The platform's second provider (settings.backup_ai_*), or None if unset."""
+    if not settings.backup_ai_api_key:
+        return None
+    m = settings.backup_ai_model
+    return Target(
+        own=False, provider="platform-backup", label="Recruit AI backup",
+        base_url=settings.backup_ai_base_url, api_key=settings.backup_ai_api_key,
+        model=m, quality_model=m, fallback_model=m,
+    )
+
+
 def platform_target() -> Target:
     if not settings.nvidia_api_key:
+        backup = backup_target()
+        if backup:
+            return backup
         raise HTTPException(
             status_code=402,
             detail="No AI provider is connected. Add your own API key in Settings → AI provider.",

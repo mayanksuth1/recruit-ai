@@ -1,6 +1,7 @@
 """Resume scoring against a job description, plus the shared model-call
 engine (_generate_json) that every AI feature goes through."""
 import json
+import logging
 import time
 from functools import lru_cache
 
@@ -9,6 +10,8 @@ from fastapi import HTTPException
 from ..config import settings
 from . import ai_provider
 from .ai_provider import Target
+
+logger = logging.getLogger("uvicorn.error")
 
 SCORE_SCHEMA = {
     "type": "object",
@@ -113,10 +116,9 @@ def _cached_client():
     return OpenAI(
         api_key=settings.nvidia_api_key,
         base_url=settings.nvidia_base_url,
-        # Generous because glm-5.2 answers in minutes, not seconds: a long
-        # generation can run well past the old 180s and a timeout here would
-        # throw away a nearly-finished response and pay the whole cost again.
-        timeout=900.0,
+        # Short because a stalled model is the failure the backup provider is
+        # for: a recruiter should wait seconds for it, not minutes.
+        timeout=settings.nvidia_timeout_seconds,
         max_retries=0,  # retries/backoff are handled below so both models get a turn
     )
 
@@ -140,6 +142,10 @@ def _client():
 _RETRY_DELAYS = (0, 2, 5, 15)
 _CHUNK_PACING_SECONDS = 0.5
 _RETRYABLE_CODES = {429, 503}
+# Errors from _generate_with_target worth repeating on the backup provider:
+# out of credit (402), key rejected / model gone / bad output (502), and still
+# unavailable after retries (503). Not 400: that is a problem with the request.
+_FAILOVER_CODES = {402, 502, 503}
 
 
 # One client per (endpoint, key). Per-call clients can be garbage-collected
@@ -148,7 +154,7 @@ _own_clients: dict[tuple[str, str], object] = {}
 
 
 def _client_for(t: Target):
-    if not t.own:
+    if t.provider == "platform":
         return _client()
     key = (t.base_url, t.api_key)
     client = _own_clients.get(key)
@@ -283,7 +289,10 @@ def _generate_with_target(t: Target, prompt: str, schema: dict, quality: bool) -
                 if "insufficient_quota" in str(e) or "credit" in str(e).lower():
                     raise HTTPException(status_code=402, detail=f"Your {who} account has no credit left.{fix}")
                 last_error = e
-            except (openai.APITimeoutError, openai.APIConnectionError) as e:
+            except openai.APITimeoutError as e:
+                last_error = e
+                break  # a model that stalled once will stall again: move on
+            except openai.APIConnectionError as e:
                 last_error = e
             except (openai.AuthenticationError, openai.PermissionDeniedError):
                 if t.own:
@@ -325,7 +334,17 @@ def _generate_json(prompt: str, schema: dict, *, org_id: str | None,
     t = ai_provider.resolve(org_id)
     if not t.own:
         ai_provider.meter_platform_call(org_id, candidate_facing=candidate_facing)
-    return _generate_with_target(t, prompt, schema, quality)
+    try:
+        return _generate_with_target(t, prompt, schema, quality)
+    except HTTPException as e:
+        # Platform key only: an organization's own provider failing is theirs
+        # to fix in Settings, not something to paper over with our quota.
+        backup = None if t.own else ai_provider.backup_target()
+        if backup is None or backup.base_url == t.base_url or e.status_code not in _FAILOVER_CODES:
+            raise
+        logger.warning("AI primary failed (%s: %s); retrying on backup %s",
+                       e.status_code, e.detail, backup.base_url)
+        return _generate_with_target(backup, prompt, schema, quality)
 
 
 _PING_SCHEMA = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]}

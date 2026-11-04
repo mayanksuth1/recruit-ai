@@ -38,9 +38,10 @@ frontend must point at the backend's URL.
 |---|---|
 | `SUPABASE_URL` | your Supabase project URL |
 | `SUPABASE_SECRET_KEY` | Supabase **secret** key (server-only) |
-| `GEMINI_API_KEY` | your Gemini key |
-| `GEMINI_MODEL` | `gemini-2.5-flash` |
-| `GEMINI_FALLBACK_MODEL` | `gemini-2.5-flash-lite` |
+| `NVIDIA_API_KEY` | your NVIDIA NIM key (build.nvidia.com) |
+| `BACKUP_AI_API_KEY` | your Groq key (console.groq.com), used when NVIDIA fails |
+| `PLATFORM_AI_MONTHLY_LIMIT` | `5000` |
+| `AI_KEYS_ENCRYPTION_KEY` | a Fernet key; see the comment in `backend/app/config.py` |
 | `RESEND_API_KEY` | your Resend key |
 | `EMAIL_FROM` | `Recruit AI <onboarding@resend.dev>` (or your verified domain) |
 | `GOOGLE_CLIENT_ID` | your OAuth client ID |
@@ -124,7 +125,7 @@ Work down the list — each step proves one link in the chain.
       like "blocked by CORS policy" — fix by confirming `CORS_ORIGINS` on
       Render exactly matches the Vercel origin (scheme + host, no trailing slash).
 - [ ] **AI path:** upload a resume PDF on a role → it scores. (Confirms the
-      Gemini key on Render works.)
+      AI keys on Render work.)
 - [ ] **Auth persists:** refresh the page — you stay signed in. (Supabase
       session in the browser + backend JWT verification both working.)
 - [ ] **Public page:** the candidate scheduling link (`/schedule/<token>`)

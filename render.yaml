@@ -21,13 +21,15 @@ services:
       - key: NVIDIA_API_KEY
         sync: false
       - key: NVIDIA_MODEL
-        value: openai/gpt-oss-20b
+        value: nvidia/nemotron-3.5-bolt-e4b
       - key: NVIDIA_FALLBACK_MODEL
-        value: openai/gpt-oss-20b
+        value: nvidia/nemotron-3.5-bolt-e4b
       - key: NVIDIA_QUALITY_MODEL
-        value: openai/gpt-oss-20b
+        value: nvidia/nemotron-3.5-bolt-e4b
       - key: NVIDIA_EMBEDDING_MODEL
-        value: nvidia/nv-embedqa-e5-v5
+        value: nvidia/nemotron-3.5-embed-1b
+      - key: BACKUP_AI_API_KEY
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM

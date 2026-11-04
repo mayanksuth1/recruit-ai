@@ -26,9 +26,10 @@ from ..config import settings
 from ..db import service_client
 from .scoring import _RETRYABLE_CODES, _RETRY_DELAYS, _client
 
-# nv-embedqa-e5-v5 accepts a batch per request; keep batches modest so one
-# failure re-does little work and rate limits stay comfortable.
-_BATCH = 16
+# nemotron-3.5-embed-1b answers 500 "service inference failed" to most requests
+# of 3+ inputs and never to single ones (measured 2026-11-04), so each text is
+# its own request. The retries in _embed absorb the free tier's rate limit.
+_BATCH = 1
 _MAX_CHARS = 8000          # per chunk sent to the embedder
 _PROFILE_CHUNK = 1500      # target profile chunk size, in characters
 
@@ -40,7 +41,7 @@ def _embed(texts: list[str], input_type: str) -> list[list[float]]:
     The API rejects any other value, so a typo fails loudly rather than
     silently embedding a query as a document.
 
-    The returned width is fixed by the model (1024 for nv-embedqa-e5-v5) and is
+    The returned width is requested from the model (1024) and is
     asserted below: a mismatch means the model was changed without migrating
     ai_embeddings.embedding, and failing here beats a Postgres error thrown
     halfway through a batch insert."""
@@ -59,6 +60,7 @@ def _embed(texts: list[str], input_type: str) -> list[list[float]]:
                 resp = _client().embeddings.create(
                     model=settings.nvidia_embedding_model,
                     input=batch,
+                    dimensions=settings.nvidia_embedding_dim,
                     encoding_format="float",
                     extra_body={"input_type": input_type, "truncate": "END"},
                 )

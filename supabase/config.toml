@@ -156,11 +156,11 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "https://mayank.taila31795.ts.net"
+site_url = "http://localhost:5174"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
-# Google sign-in: Google must send the browser back to an address the public
-# can reach, through the backend's /supabase proxy (callback is allow-listed).
-external_url = "https://mayank.taila31795.ts.net/supabase/auth/v1"
+# Google sign-in: Google sends the browser back here, so this must match the
+# redirect URI registered on the OAuth client. Local stack on the Mac.
+external_url = "http://127.0.0.1:54421/auth/v1"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # Every origin this app can legitimately be served from. A reset or
 # confirmation link whose redirect is not listed here is silently refused —
@@ -173,6 +173,8 @@ external_url = "https://mayank.taila31795.ts.net/supabase/auth/v1"
 additional_redirect_urls = [
   "http://localhost:5173",
   "http://localhost:5173/**",
+  "http://localhost:5174",
+  "http://localhost:5174/**",
   "http://localhost:8000",
   "http://localhost:8000/**",
   "http://127.0.0.1:8000",

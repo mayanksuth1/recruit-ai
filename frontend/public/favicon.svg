@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Recruit AI">
+  <rect width="512" height="512" rx="112" fill="#0f0e0d"/>
+  <g transform="translate(256 256) scale(.74) translate(-256 -256)">
+    <circle cx="394.0" cy="268.0" r="46" fill="#f2eee9"/>
+    <circle cx="350.1" cy="374.1" r="46" fill="#f2eee9"/>
+    <circle cx="244.0" cy="418.0" r="46" fill="#f2eee9"/>
+    <circle cx="137.9" cy="374.1" r="46" fill="#f2eee9"/>
+    <circle cx="94.0" cy="268.0" r="46" fill="#f2eee9"/>
+    <circle cx="137.9" cy="161.9" r="46" fill="#f2eee9"/>
+    <circle cx="244.0" cy="118.0" r="46" fill="#f2eee9"/>
+    <circle cx="412.3" cy="99.7" r="46" fill="#ff4040"/>
+  </g>
+</svg>

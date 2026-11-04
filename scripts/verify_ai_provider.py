@@ -79,21 +79,21 @@ def main():
             "provider": "custom", "base_url": base, "api_key": "sk-test", "model": "x"}, timeout=60)
         check(f"custom URL refused: {base}", r.status_code == 400, f"{r.status_code} {r.text[:120]}")
     r = httpx.put(f"{API}/api/ai-provider", headers=H, json={
-        "provider": "nvidia", "api_key": "nvapi-definitely-not-valid", "model": "openai/gpt-oss-20b"}, timeout=120)
+        "provider": "nvidia", "api_key": "nvapi-definitely-not-valid", "model": "nvidia/nemotron-3.5-bolt-e4b"}, timeout=120)
     check("bad key refused and explained", r.status_code == 400 and "rejected" in r.text, f"{r.status_code} {r.text[:200]}")
     st = httpx.get(f"{API}/api/ai-provider", headers=H, timeout=20).json()
     check("a failed test saves nothing", st["config"] is None)
     r = httpx.put(f"{API}/api/ai-provider", headers=H, json={
-        "provider": "nvidia", "model": "openai/gpt-oss-20b"}, timeout=60)
+        "provider": "nvidia", "model": "nvidia/nemotron-3.5-bolt-e4b"}, timeout=60)
     check("no key and nothing saved -> asks for key", r.status_code == 400, f"{r.status_code}")
 
     print("\nOwn provider (NVIDIA key entered as the workspace's own):")
     r = httpx.post(f"{API}/api/ai-provider/models", headers=H,
                    json={"provider": "nvidia", "api_key": NVIDIA_KEY}, timeout=60)
-    check("model list loads", r.status_code == 200 and "openai/gpt-oss-20b" in r.json().get("models", []),
+    check("model list loads", r.status_code == 200 and "nvidia/nemotron-3.5-bolt-e4b" in r.json().get("models", []),
           f"{r.status_code} {r.text[:150]}")
     r = httpx.put(f"{API}/api/ai-provider", headers=H, json={
-        "provider": "nvidia", "api_key": NVIDIA_KEY, "model": "openai/gpt-oss-20b"}, timeout=300)
+        "provider": "nvidia", "api_key": NVIDIA_KEY, "model": "nvidia/nemotron-3.5-bolt-e4b"}, timeout=300)
     check("valid key tested and saved", r.status_code == 200 and r.json()["config"]["provider"] == "nvidia",
           f"{r.status_code} {r.text[:200]}")
     body = r.text

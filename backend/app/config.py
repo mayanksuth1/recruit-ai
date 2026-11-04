@@ -11,13 +11,11 @@ class Settings(BaseSettings):
     # SDK pointed at NVIDIA's base URL rather than a bespoke one.
     nvidia_api_key: str = ""
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
-    # gpt-oss-* honour OpenAI-style response_format json_schema, which is what
-    # every call in this codebase relies on. The nemotron reasoning models
-    # return their text in `reasoning_content` and leave `content` null, so they
-    # are NOT drop-in replacements here.
-    #
-    # Two tiers, chosen on measured latency (2026-08-10, 40-token reply on this
-    # account): gpt-oss-20b ~1.2s, gpt-oss-120b ~82.7s, glm-5.2 ~101s.
+    # The model must honour OpenAI-style response_format json_schema and return
+    # its answer in `content`, which every call in this codebase relies on.
+    # nemotron-3.5-bolt-e4b does both, ~2s (measured 2026-11-04). On the free
+    # endpoints gpt-oss-120b now returns 410 Gone and gpt-oss-20b accepts the
+    # request and never answers.
     #
     # nvidia_model is the DEFAULT and is fast, because most calls are either
     # interactive (a recruiter waiting on an email draft or the next interview
@@ -28,12 +26,29 @@ class Settings(BaseSettings):
     # carefully by a human, and expensive to get wrong — currently the LinkedIn
     # post and the interview transcript scoring. Do not make it the default:
     # at ~101s a call it would put minutes into every screen in the app.
-    nvidia_model: str = "openai/gpt-oss-20b"
-    nvidia_quality_model: str = "openai/gpt-oss-20b"
-    nvidia_fallback_model: str = "openai/gpt-oss-20b"
-    # 1024-dimensional; ai_embeddings.embedding is vector(1024) to match (0011).
-    nvidia_embedding_model: str = "nvidia/nv-embedqa-e5-v5"
+    nvidia_model: str = "nvidia/nemotron-3.5-bolt-e4b"
+    nvidia_quality_model: str = "nvidia/nemotron-3.5-bolt-e4b"
+    nvidia_fallback_model: str = "nvidia/nemotron-3.5-bolt-e4b"
+    # Seconds before a stalled NVIDIA call is abandoned for the backup provider.
+    nvidia_timeout_seconds: float = 45.0
+    # Natively 2048-dimensional; requested at 1024 because
+    # ai_embeddings.embedding is vector(1024) (0011).
+    nvidia_embedding_model: str = "nvidia/nemotron-3.5-embed-1b"
     nvidia_embedding_dim: int = 1024
+
+    # --- Backup provider for the platform key --------------------------------
+    # Any OpenAI-compatible endpoint. When the NVIDIA call fails after its own
+    # retries (rate limit, outage, rejected key, no credit) the same prompt is
+    # sent here instead, and if NVIDIA_API_KEY is empty this becomes the
+    # primary. Defaults to Groq's free tier serving the same gpt-oss-20b, so the
+    # prompts and JSON schemas behave identically on either side.
+    #
+    # Chat only: Groq has no embeddings endpoint, so semantic search still
+    # needs NVIDIA. Organizations with their own provider never fail over here;
+    # that would spend the platform's quota on their behalf.
+    backup_ai_api_key: str = ""
+    backup_ai_base_url: str = "https://api.groq.com/openai/v1"
+    backup_ai_model: str = "openai/gpt-oss-20b"
 
     # --- Gemini (retired) ---------------------------------------------------
     # Kept so existing .env files and the Render blueprint do not fail to parse.
